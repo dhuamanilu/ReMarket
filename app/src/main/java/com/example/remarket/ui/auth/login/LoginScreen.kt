@@ -28,6 +28,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.remarket.ui.auth.register.Register1Screen;
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +36,10 @@ fun LoginScreen(
     viewModel: LoginViewModel = viewModel(),
     onNavigateToHome: () -> Unit = {},
     onNavigateToAdmin: () -> Unit = {},
+    onNavigateToRegister: () -> Unit = {},
     onNavigateToForgotPassword: () -> Unit = {}
+
+
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val navigationEvent by viewModel.navigationEvent.collectAsState()
@@ -84,6 +88,28 @@ fun LoginScreen(
                     message = errorMessage,
                     onDismiss = viewModel::clearErrorMessage
                 )
+            }
+
+            // Botón para ir a registro
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "¿No tienes cuenta? ",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 14.sp
+                )
+                TextButton(onClick = onNavigateToRegister) {
+                    Text(
+                        text = "Regístrate",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
             }
         }
     }
@@ -308,6 +334,7 @@ private fun ErrorMessageCard(
         }
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable

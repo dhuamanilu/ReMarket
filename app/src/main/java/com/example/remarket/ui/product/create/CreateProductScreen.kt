@@ -20,7 +20,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun CreateProductScreen(
     viewModel: CreateProductViewModel = hiltViewModel(),
-    onNext: () -> Unit
+    onNext: () -> Unit,
+    onNavigateBack: () -> Unit = {}
 ) {
     // Estados del ViewModel
     val brand by viewModel.brand.collectAsState()

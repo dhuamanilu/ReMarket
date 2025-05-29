@@ -56,4 +56,10 @@ class ProductRepository {
         delay(500)
         emit(true)
     }
+
+    suspend fun getAllProducts(): Flow<List<Product>> = flow {
+        // Simular carga de datos
+        delay(1000)
+        emit(mockProducts)
+    }
 }

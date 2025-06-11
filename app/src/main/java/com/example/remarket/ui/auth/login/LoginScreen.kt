@@ -28,33 +28,29 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.remarket.ui.auth.register.Register1Screen;
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class) //
 @Composable
 fun LoginScreen(
-    viewModel: LoginViewModel = viewModel(),
-    onNavigateToHome: () -> Unit = {},
-    onNavigateToAdmin: () -> Unit = {},
-    onNavigateToRegister: () -> Unit = {},
-    onNavigateToForgotPassword: () -> Unit = {}
-
-
+    viewModel: LoginViewModel, // Se recibe el ViewModel completo
+    onNavigateToHome: () -> Unit,
+    onNavigateToAdmin: () -> Unit,
+    onNavigateToRegister: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val navigationEvent by viewModel.navigationEvent.collectAsState()
-
-
+    // El evento de navegación ya es manejado por el NavGraph,
+    // por lo que no es necesario recolectarlo aquí de nuevo.
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.verticalGradient(
+                Brush.verticalGradient( //
                     colors = listOf(
-                        Color(0xFF6366F1), 
-                        Color(0xFF8B5CF6)  
-                    )
+                        Color(0xFF6366F1),
+                        Color(0xFF8B5CF6)
+                    ) //
                 )
             )
     ) {
@@ -62,7 +58,7 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally, //
             verticalArrangement = Arrangement.Center
         ) {
 
@@ -73,19 +69,19 @@ fun LoginScreen(
 
             // Formulario de login
             LoginForm(
-                uiState = uiState,
-                onEmailChanged = viewModel::onEmailChanged,
+                uiState = uiState, //
+                onEmailChanged = viewModel::onEmailChanged, //
                 onPasswordChanged = viewModel::onPasswordChanged,
                 onTogglePasswordVisibility = viewModel::togglePasswordVisibility,
                 onLoginClicked = viewModel::onLoginClicked,
-                onForgotPasswordClicked = viewModel::onForgotPasswordClicked
+                onForgotPasswordClicked = onNavigateToForgotPassword // Se usa el callback directamente
             )
 
             // Mostrar mensaje de error si existe
             uiState.errorMessage?.let { errorMessage ->
                 Spacer(modifier = Modifier.height(16.dp))
                 ErrorMessageCard(
-                    message = errorMessage,
+                    message = errorMessage, //
                     onDismiss = viewModel::clearErrorMessage
                 )
             }
@@ -93,21 +89,21 @@ fun LoginScreen(
             // Botón para ir a registro
             Spacer(modifier = Modifier.height(24.dp))
 
-            Row(
+            Row( //
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "¿No tienes cuenta? ",
+                    text = "¿No tienes cuenta? ", //
                     color = Color.White.copy(alpha = 0.8f),
                     fontSize = 14.sp
                 )
                 TextButton(onClick = onNavigateToRegister) {
-                    Text(
+                    Text( //
                         text = "Regístrate",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontSize = 14.sp //
                     )
                 }
             }
@@ -122,18 +118,18 @@ private fun LogoSection() {
     ) {
         // Círculo de fondo para el ícono
         Box(
-            modifier = Modifier
+            modifier = Modifier //
                 .size(80.dp)
                 .background(
                     Color.White.copy(alpha = 0.2f),
                     RoundedCornerShape(40.dp)
-                ),
+                ), //
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Person,
                 contentDescription = "ReMarket Logo",
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(40.dp), //
                 tint = Color.White
             )
         }
@@ -143,7 +139,7 @@ private fun LogoSection() {
         Text(
             text = "ReMarket",
             fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Bold, //
             color = Color.White
         )
 
@@ -171,7 +167,7 @@ private fun LoginForm(
         // Campo de correo electrónico
         Text(
             text = "Correo electrónico",
-            color = Color.White,
+            color = Color.White, //
             fontSize = 14.sp,
             modifier = Modifier.padding(bottom = 8.dp)
         )
@@ -180,25 +176,25 @@ private fun LoginForm(
             value = uiState.email,
             onValueChange = onEmailChanged,
             placeholder = {
-                Text(
+                Text( //
                     "Ingresa tu correo electrónico",
                     color = Color.Gray
                 )
             },
             leadingIcon = {
-                Icon(
+                Icon( //
                     Icons.Default.Person,
                     contentDescription = "Email"
                 )
             },
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth() //
                 .padding(bottom = 16.dp),
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = Color.White,
                 unfocusedContainerColor = Color.White,
-                focusedBorderColor = if (uiState.isEmailValid) Color.Transparent else Color.Red,
+                focusedBorderColor = if (uiState.isEmailValid) Color.Transparent else Color.Red, //
                 unfocusedBorderColor = if (uiState.isEmailValid) Color.Transparent else Color.Red
             ),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -207,7 +203,7 @@ private fun LoginForm(
         )
 
         // Campo de contraseña
-        Text(
+        Text( //
             text = "Contraseña",
             color = Color.White,
             fontSize = 14.sp,
@@ -215,40 +211,40 @@ private fun LoginForm(
         )
 
         OutlinedTextField(
-            value = uiState.password,
+            value = uiState.password, //
             onValueChange = onPasswordChanged,
             placeholder = {
                 Text(
                     "Ingresa tu contraseña",
                     color = Color.Gray
-                )
+                ) //
             },
             leadingIcon = {
                 Icon(
                     Icons.Default.Lock,
                     contentDescription = "Password"
-                )
+                ) //
             },
             trailingIcon = {
                 IconButton(onClick = onTogglePasswordVisibility) {
                     Icon(
-                        imageVector = if (uiState.isPasswordVisible)
+                        imageVector = if (uiState.isPasswordVisible) //
                             Icons.Default.AccountCircle else Icons.Default.AccountBox,
                         contentDescription = if (uiState.isPasswordVisible)
                             "Ocultar contraseña" else "Mostrar contraseña"
-                    )
+                    ) //
                 }
             },
             visualTransformation = if (uiState.isPasswordVisible)
                 VisualTransformation.None else PasswordVisualTransformation(),
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth() //
                 .padding(bottom = 16.dp),
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = Color.White,
                 unfocusedContainerColor = Color.White,
-                focusedBorderColor = if (uiState.isPasswordValid) Color.Transparent else Color.Red,
+                focusedBorderColor = if (uiState.isPasswordValid) Color.Transparent else Color.Red, //
                 unfocusedBorderColor = if (uiState.isPasswordValid) Color.Transparent else Color.Red
             ),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -257,14 +253,14 @@ private fun LoginForm(
         )
 
         // Olvidé mi contraseña
-        TextButton(
+        TextButton( //
             onClick = onForgotPasswordClicked,
             modifier = Modifier.align(Alignment.End)
         ) {
             Text(
                 "Olvidé mi contraseña",
                 color = Color.White.copy(alpha = 0.8f),
-                fontSize = 14.sp
+                fontSize = 14.sp //
             )
         }
 
@@ -274,25 +270,25 @@ private fun LoginForm(
         Button(
             onClick = onLoginClicked,
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth() //
                 .height(56.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.White,
                 contentColor = Color(0xFF6366F1)
-            ),
+            ), //
             enabled = !uiState.isLoading
         ) {
             if (uiState.isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
                     color = Color(0xFF6366F1)
-                )
+                ) //
             } else {
                 Text(
                     "Iniciar sesión",
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold //
                 )
             }
         }
@@ -308,7 +304,7 @@ private fun ErrorMessageCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.Red.copy(alpha = 0.1f)
+            containerColor = Color.Red.copy(alpha = 0.1f) //
         )
     ) {
         Row(
@@ -316,28 +312,21 @@ private fun ErrorMessageCard(
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
-        ) {
+        ) { //
             Text(
                 text = message,
                 color = Color.White,
                 fontSize = 14.sp,
                 modifier = Modifier.weight(1f)
-            )
+            ) //
 
             TextButton(onClick = onDismiss) {
                 Text(
                     "X",
                     color = Color.White,
                     fontWeight = FontWeight.Bold
-                )
+                ) //
             }
         }
     }
-}
-
-
-@Preview(showBackground = true)
-@Composable
-fun LoginScreenPreview() {
-    LoginScreen()
 }

@@ -2,10 +2,13 @@
 package com.example.remarket.ui.auth.register
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.remarket.data.repository.UserRepository // <-- Importa
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class RegisterUiState(
@@ -27,8 +30,11 @@ data class ValidationErrors(
 
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
-    // Inyecta repositorios o casos de uso si es necesario
+    private val userRepository: UserRepository // <-- Inyecta el repositorio
 ) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(RegisterUiState())
+    val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
 
     private val _firstName = MutableStateFlow("")
     val firstName: StateFlow<String> = _firstName.asStateFlow()
@@ -78,5 +84,32 @@ class RegisterViewModel @Inject constructor(
 
     fun onConfirmPasswordChanged(value: String) {
         _confirmPassword.value = value
+    }
+    fun onRegisterClicked(onSuccess: () -> Unit) {
+        // Validación básica (se puede expandir)
+        if (password.value != confirmPassword.value) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Las contraseñas no coinciden")
+            return
+        }
+        if (email.value.isBlank() || password.value.isBlank()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "El email y la contraseña no pueden estar vacíos")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+
+            val success = userRepository.createUser(email.value, password.value)
+
+            if (success) {
+                _uiState.value = _uiState.value.copy(isLoading = false, isRegistrationSuccessful = true)
+                onSuccess() // Llama al callback de navegación
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "El correo electrónico ya está en uso."
+                )
+            }
+        }
     }
 }

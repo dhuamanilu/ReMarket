@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import com.example.remarket.data.repository.UserRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 data class LoginUiState(
     val email: String = "",
@@ -19,20 +22,16 @@ data class LoginUiState(
     val isPasswordValid: Boolean = true
 )
 
-class LoginViewModel : ViewModel() {
+@HiltViewModel // <-- Asegúrate que esta anotación esté
+class LoginViewModel @Inject constructor(
+    private val userRepository: UserRepository // Inyecta el repositorio
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
     val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
-
-    // Datos de prueba para validación
-    private val testUsers = mapOf(
-        "admin@remarket.com" to "admin123",
-        "user@remarket.com" to "user123",
-        "test@example.com" to "password"
-    )
 
     fun onEmailChanged(email: String) {
         _uiState.value = _uiState.value.copy(
@@ -77,24 +76,17 @@ class LoginViewModel : ViewModel() {
 
         // Simular proceso de login
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = true,
-                errorMessage = null
-            )
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null) //
+            delay(1500) // Simulación de red
 
-            delay(2000)
+            // --- LÓGICA ACTUALIZADA ---
+            val validatedEmail = userRepository.validateUser(currentState.email, currentState.password)
 
-            // Validar credenciales con datos de prueba
-            val isValidUser = testUsers[currentState.email] == currentState.password
-
-            if (isValidUser) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    isLoginSuccessful = true
-                )
+            if (validatedEmail != null) {
+                _uiState.value = _uiState.value.copy(isLoading = false, isLoginSuccessful = true)
 
                 // Determinar tipo de usuario y navegar
-                when (currentState.email) {
+                when (validatedEmail) { //
                     "admin@remarket.com" -> _navigationEvent.value = NavigationEvent.NavigateToAdmin
                     else -> _navigationEvent.value = NavigationEvent.NavigateToHome
                 }

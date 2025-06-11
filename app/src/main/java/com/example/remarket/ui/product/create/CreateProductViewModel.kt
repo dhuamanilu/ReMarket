@@ -11,10 +11,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class CreateProductViewModel @Inject constructor(
-    //private val createProductUseCase: CreateProductUseCase
+    private val createProductUseCase: CreateProductUseCase
 ) : ViewModel() {
 
-    // Campos de texto introducidos por el usuario
+    // (El resto de tus StateFlows se mantienen igual)
     private val _brand = MutableStateFlow("")
     val brand: StateFlow<String> = _brand
 
@@ -27,14 +27,12 @@ class CreateProductViewModel @Inject constructor(
     private val _price = MutableStateFlow("")
     val price: StateFlow<String> = _price
 
-    // Estados de UI
     private val _isPosting = MutableStateFlow(false)
     val isPosting: StateFlow<Boolean> = _isPosting
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    // Métodos para actualizar los campos
     fun onBrandChanged(text: String) {
         _brand.value = text
         _error.value = null
@@ -51,8 +49,11 @@ class CreateProductViewModel @Inject constructor(
     }
 
     fun onPriceChanged(text: String) {
-        _price.value = text
-        _error.value = null
+        // Permitir solo números y un punto decimal
+        if (text.matches(Regex("^\\d*\\.?\\d*\$"))) {
+            _price.value = text
+            _error.value = null
+        }
     }
 
     /**
@@ -63,19 +64,21 @@ class CreateProductViewModel @Inject constructor(
         val brandValue = brand.value.trim()
         val modelValue = modelText.value.trim()
         val storageValue = storageText.value.trim()
-        val priceValue = price.value.trim().toDoubleOrNull()
+        val priceString = price.value.trim()
+        val priceValue = priceString.toDoubleOrNull()
 
-        // Validación básica
-        if (brandValue.isEmpty() ||
-            modelValue.isEmpty() ||
-            storageValue.isEmpty() ||
-            priceValue == null
-        ) {
-            _error.value = "Todos los campos son obligatorios y el precio debe ser numérico"
+        // Validación mejorada
+        if (brandValue.isEmpty() || modelValue.isEmpty() || storageValue.isEmpty() || priceString.isEmpty()) {
+            _error.value = "Todos los campos son obligatorios"
             return
         }
 
-        /*viewModelScope.launch {
+        if (priceValue == null) {
+            _error.value = "El precio debe ser un valor numérico válido"
+            return
+        }
+
+        viewModelScope.launch {
             _isPosting.value = true
             _error.value = null
             try {
@@ -91,6 +94,6 @@ class CreateProductViewModel @Inject constructor(
             } finally {
                 _isPosting.value = false
             }
-        }*/
+        }
     }
 }

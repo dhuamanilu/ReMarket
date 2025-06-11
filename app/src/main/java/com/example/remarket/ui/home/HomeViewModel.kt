@@ -7,6 +7,8 @@ import com.example.remarket.data.model.Product
 import com.example.remarket.data.repository.ProductRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 data class HomeUiState(
     val products: List<Product> = emptyList(),
@@ -15,13 +17,17 @@ data class HomeUiState(
     val isLoading: Boolean = false,
     val error: String? = null
 )
-
-class HomeViewModel(
-    private val productRepository: ProductRepository = ProductRepository()
+@HiltViewModel // Añadir esta anotación
+class HomeViewModel @Inject constructor( // Modificar constructor para inyección
+    private val productRepository: ProductRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    init { // Cargar productos al iniciar el ViewModel
+        loadProducts()
+    }
 
     fun loadProducts() {
         viewModelScope.launch {

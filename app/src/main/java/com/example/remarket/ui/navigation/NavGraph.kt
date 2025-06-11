@@ -1,12 +1,18 @@
 // ui/navigation/AppNavGraph.kt
 package com.example.remarket.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.navigation
 import com.example.remarket.ui.auth.login.LoginScreen
 import com.example.remarket.ui.auth.login.LoginViewModel
 import com.example.remarket.ui.auth.login.NavigationEvent
@@ -16,19 +22,23 @@ import com.example.remarket.ui.auth.register.RegisterViewModel
 import com.example.remarket.ui.home.HomeScreen
 import com.example.remarket.ui.product.detail.ProductDetailScreen
 import com.example.remarket.ui.product.create.CreateProductScreen
-import com.example.remarket.ui.home.HomeScreen
+import com.example.remarket.ui.home.HomeScreen // Importa la pantalla real
+import com.example.remarket.ui.home.HomeViewModel // Importa el ViewModel real
+import com.example.remarket.ui.product.create.CreateProductViewModel
+import com.example.remarket.ui.product.detail.ProductDetailViewModel
 
-// Definición de rutas
+// Definición de rutas centralizada y clara
 object Routes {
     const val LOGIN = "login"
+    const val REGISTER_FLOW = "register_flow" // Ruta para el gráfico anidado
     const val REGISTER_1 = "register_1"
     const val REGISTER_2 = "register_2"
     const val HOME = "home"
-    const val PRODUCT_DETAIL = "product_detail"
-    const val PRODUCT_CREATE = "product_create"
+    const val PRODUCT_DETAIL = "product_detail/{productId}"
+    const val PRODUCT_CREATE = "product_create" //
     const val ADMIN_HOME = "admin_home"
     const val FORGOT_PASSWORD = "forgot_password"
-    const val PURCHASE = "purchase"
+    const val PURCHASE = "purchase/{productId}"
 }
 
 @Composable
@@ -41,101 +51,129 @@ fun AppNavGraph(
     ) {
         // Pantalla de Login
         composable(Routes.LOGIN) {
-            val loginViewModel: LoginViewModel = hiltViewModel()
-            val navigationEvent by loginViewModel.navigationEvent.collectAsState()
+            val loginViewModel: LoginViewModel = hiltViewModel() //
 
             // Manejar eventos de navegación del LoginViewModel
-            LaunchedEffect(navigationEvent) {
-                when (navigationEvent) {
-                    NavigationEvent.NavigateToHome -> {
-                        navController.navigate(Routes.HOME) {
-                            popUpTo(Routes.LOGIN) { inclusive = true }
+            LaunchedEffect(key1 = loginViewModel.navigationEvent) {
+                loginViewModel.navigationEvent.collect { event ->
+                    when (event) {
+                        is NavigationEvent.NavigateToHome -> {
+                            navController.navigate(Routes.HOME) { //
+                                popUpTo(Routes.LOGIN) { inclusive = true }
+                            }
+                            loginViewModel.clearNavigationEvent() //
                         }
-                        loginViewModel.clearNavigationEvent()
-                    }
-                    NavigationEvent.NavigateToAdmin -> {
-                        navController.navigate(Routes.ADMIN_HOME) {
-                            popUpTo(Routes.LOGIN) { inclusive = true }
+                        is NavigationEvent.NavigateToAdmin -> {
+                            navController.navigate(Routes.ADMIN_HOME) { //
+                                popUpTo(Routes.LOGIN) { inclusive = true }
+                            }
+                            loginViewModel.clearNavigationEvent()
                         }
-                        loginViewModel.clearNavigationEvent()
+                        is NavigationEvent.NavigateToForgotPassword -> {
+                            navController.navigate(Routes.FORGOT_PASSWORD) //
+                            loginViewModel.clearNavigationEvent()
+                        }
+                        null -> { /* No hacer nada */ }
                     }
-                    NavigationEvent.NavigateToForgotPassword -> {
-                        navController.navigate(Routes.FORGOT_PASSWORD)
-                        loginViewModel.clearNavigationEvent()
-                    }
-                    null -> { /* No hacer nada */ }
                 }
             }
 
-            LoginScreen(
+            LoginScreen( //
                 viewModel = loginViewModel,
                 onNavigateToRegister = {
-                    navController.navigate(Routes.REGISTER_1)
+                    navController.navigate(Routes.REGISTER_FLOW) // Navega al gráfico de registro
+                },
+                // Las siguientes navegaciones son manejadas por el LaunchedEffect
+                // pero se mantienen por si se necesitan para otros flujos.
+                onNavigateToHome = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                },
+                onNavigateToAdmin = {
+                    navController.navigate(Routes.ADMIN_HOME) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                },
+                onNavigateToForgotPassword = {
+                    navController.navigate(Routes.FORGOT_PASSWORD)
                 }
             )
         }
 
-        // Registro - Paso 1
-        composable(Routes.REGISTER_1) {
-            val registerViewModel: RegisterViewModel = hiltViewModel()
+        // Gráfico de Navegación Anidado para el Registro
+        navigation(
+            startDestination = Routes.REGISTER_1,
+            route = Routes.REGISTER_FLOW
+        ) {
+            composable(Routes.REGISTER_1) { backStackEntry ->
+                // Obtenemos el backStackEntry del gráfico padre ("register_flow")
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Routes.REGISTER_FLOW)
+                }
+                // El ViewModel se asocia al gráfico padre, por lo tanto, se comparte
+                val registerViewModel: RegisterViewModel = hiltViewModel(parentEntry)
 
-            Register1Screen(
-                onBack = {
-                    navController.popBackStack()
-                },
-                onNext = {
-                    navController.navigate(Routes.REGISTER_2)
-                },
-                viewModel = registerViewModel
-            )
-        }
+                Register1Screen( //
+                    onBack = { navController.popBackStack() }, //
+                    onNext = { navController.navigate(Routes.REGISTER_2) },
+                    viewModel = registerViewModel
+                )
+            }
 
-        // Registro - Paso 2
-        composable(Routes.REGISTER_2) {
-            val registerViewModel: RegisterViewModel = hiltViewModel()
+            composable(Routes.REGISTER_2) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Routes.REGISTER_FLOW)
+                }
+                val registerViewModel: RegisterViewModel = hiltViewModel(parentEntry)
 
-            Register2Screen(
-                onBack = {
-                    navController.popBackStack()
-                },
-                onRegister = {
-                    // Registro exitoso, ir al login
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.REGISTER_1) { inclusive = true }
-                    }
-                },
-                viewModel = registerViewModel
-            )
+                Register2Screen(
+                    onBack = { navController.popBackStack() }, //
+                    onRegister = {
+                        // Al registrarse, volver al Login y limpiar la pila de registro
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(Routes.REGISTER_FLOW) { inclusive = true } //
+                        }
+                    },
+                    viewModel = registerViewModel
+                )
+            }
         }
 
         // Pantalla principal (Home)
         composable(Routes.HOME) {
+            val homeViewModel: HomeViewModel = hiltViewModel() //
+            val uiState by homeViewModel.uiState.collectAsState()
+
             HomeScreen(
+                uiState = uiState,
+                onSearchQueryChanged = homeViewModel::onSearchQueryChanged, //
                 onNavigateToProductDetail = { productId ->
-                    navController.navigate("${Routes.PRODUCT_DETAIL}/$productId")
+                    // Navegación segura y limpia
+                    navController.navigate(Routes.PRODUCT_DETAIL.replace("{productId}", productId))
                 },
                 onNavigateToCreateProduct = {
-                    navController.navigate(Routes.PRODUCT_CREATE)
+                    navController.navigate(Routes.PRODUCT_CREATE) //
                 },
                 onLogout = {
                     navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.HOME) { inclusive = true }
+                        popUpTo(Routes.HOME) { inclusive = true } //
                     }
                 }
             )
         }
 
         // Detalle de producto
-        composable("${Routes.PRODUCT_DETAIL}/{productId}") { backStackEntry ->
+        composable(Routes.PRODUCT_DETAIL) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            val viewModel: ProductDetailViewModel = hiltViewModel()
 
-            ProductDetailScreen(
+            ProductDetailScreen( //
                 productId = productId,
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
-                onBuyProduct = { productId ->
-                    navController.navigate("${Routes.PURCHASE}/$productId")
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onBuyProduct = { prodId ->
+                    navController.navigate(Routes.PURCHASE.replace("{productId}", prodId)) //
                 }
             )
         }
@@ -144,64 +182,55 @@ fun AppNavGraph(
         composable(Routes.PRODUCT_CREATE) {
             CreateProductScreen(
                 onNext = {
-                    // Producto creado exitosamente, volver al home
-                    navController.popBackStack()
+                    navController.popBackStack() //
                 },
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.popBackStack() //
                 }
             )
         }
 
-        // Pantalla de compra/reserva
-        composable("${Routes.PURCHASE}/{productId}") { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+        // --- Pantallas Placeholder (Implementar UI más adelante) ---
 
-            PurchaseScreen(
-                productId = productId,
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
-                onPurchaseComplete = {
-                    // Compra completada, volver al home
-                    navController.navigate(Routes.HOME) {
-                        popUpTo("${Routes.PURCHASE}/$productId") { inclusive = true }
-                    }
+        composable(Routes.ADMIN_HOME) { //
+            AdminHomeScreen(onLogout = {
+                navController.navigate(Routes.LOGIN) {
+                    popUpTo(Routes.ADMIN_HOME) { inclusive = true } //
                 }
-            )
+            })
         }
 
-        // Admin Home (si es necesario)
-        composable(Routes.ADMIN_HOME) {
-            AdminHomeScreen(
-                onLogout = {
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.ADMIN_HOME) { inclusive = true }
-                    }
-                }
-            )
-        }
-
-        // Forgot Password (pantalla placeholder)
         composable(Routes.FORGOT_PASSWORD) {
-            ForgotPasswordScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
+            ForgotPasswordScreen(onNavigateBack = { navController.popBackStack() }) //
+        }
+
+        composable(Routes.PURCHASE) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            PurchaseScreen(
+                productId = productId, //
+                onNavigateBack = { navController.popBackStack() },
+                onPurchaseComplete = {
+                    navController.navigate(Routes.HOME) { //
+                        popUpTo(Routes.PURCHASE.replace("{productId}", productId)) { inclusive = true }
+                    }
                 }
             )
         }
     }
 }
 
-// Pantallas placeholder que necesitarás crear
+// --- Implementaciones básicas para que el NavGraph compile ---
+
 @Composable
-fun HomeScreen(
-    onNavigateToProductDetail: (String) -> Unit,
-    onNavigateToCreateProduct: () -> Unit,
-    onLogout: () -> Unit
-) {
-    // TODO: Implementar HomeScreen
-    androidx.compose.material3.Text("Home Screen - TODO")
+fun AdminHomeScreen(onLogout: () -> Unit) {
+    // TODO: Implementar UI de Admin
+    androidx.compose.material3.Text("Admin Home Screen - TODO")
+}
+
+@Composable
+fun ForgotPasswordScreen(onNavigateBack: () -> Unit) {
+    // TODO: Implementar UI de "Olvidé mi contraseña"
+    androidx.compose.material3.Text("Forgot Password Screen - TODO")
 }
 
 @Composable
@@ -210,22 +239,6 @@ fun PurchaseScreen(
     onNavigateBack: () -> Unit,
     onPurchaseComplete: () -> Unit
 ) {
-    // TODO: Implementar PurchaseScreen
-    androidx.compose.material3.Text("Purchase Screen - TODO")
-}
-
-@Composable
-fun AdminHomeScreen(
-    onLogout: () -> Unit
-) {
-    // TODO: Implementar AdminHomeScreen
-    androidx.compose.material3.Text("Admin Home Screen - TODO")
-}
-
-@Composable
-fun ForgotPasswordScreen(
-    onNavigateBack: () -> Unit
-) {
-    // TODO: Implementar ForgotPasswordScreen
-    androidx.compose.material3.Text("Forgot Password Screen - TODO")
+    // TODO: Implementar UI de compra
+    androidx.compose.material3.Text("Purchase Screen for product $productId - TODO")
 }

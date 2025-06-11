@@ -76,14 +76,7 @@ fun Register2Screen(
             Spacer(Modifier.width(8.dp))
             Button(
                 onClick = {
-                    if (password.isBlank() || confirm.isBlank()) {
-                        Toast.makeText(context, "Las contraseñas no pueden estar vacías", Toast.LENGTH_SHORT).show()
-                    } else if (password != confirm) {
-                        Toast.makeText(context, "Las contraseñas no coinciden", Toast.LENGTH_SHORT).show()
-                    } else {
-                        // aquí podrías validar email y continuar
-                        onRegister()
-                    }
+                    viewModel.onRegisterClicked(onSuccess = onRegister)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7844FF)),
                 modifier = Modifier.weight(1f)

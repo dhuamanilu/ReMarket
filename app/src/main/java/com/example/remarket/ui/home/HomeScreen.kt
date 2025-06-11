@@ -4,30 +4,26 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-// Datos de ejemplo para navegación básica
-private val sampleProducts = listOf(
-    SampleProduct("1", "Samsung S24 Ultra"),
-    SampleProduct("2", "Apple iPhone 13 Pro")
-)
-
-data class SampleProduct(
-    val id: String,
-    val title: String
-)
 
 /**
  * Pantalla principal básica con navegación a detalle de producto, creación y logout.
  */
 @Composable
 fun HomeScreen(
+    // Pasa el estado y los eventos desde el NavGraph
+    uiState: HomeUiState,
+    onSearchQueryChanged: (String) -> Unit,
     onNavigateToProductDetail: (String) -> Unit,
     onNavigateToCreateProduct: () -> Unit,
     onLogout: () -> Unit
@@ -48,26 +44,51 @@ fun HomeScreen(
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            // Lista de productos de ejemplo
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(sampleProducts) { product ->
-                    Button(
-                        onClick = { onNavigateToProductDetail(product.id) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
+            // Campo de búsqueda (opcional pero recomendado)
+            OutlinedTextField(
+                value = uiState.searchQuery,
+                onValueChange = onSearchQueryChanged,
+                label = { Text("Buscar por marca, modelo...") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            )
+
+            // Manejo de estados de carga y error
+            when {
+                uiState.isLoading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                }
+                uiState.error != null -> {
+                    Text(
+                        text = uiState.error,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                else -> {
+                    // Lista de productos reales del estado
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(text = product.title)
+                        items(uiState.filteredProducts) { product ->
+                            Button(
+                                onClick = { onNavigateToProductDetail(product.id) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp)
+                            ) {
+                                Text(text = "${product.brand} ${product.model}")
+                            }
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Navegar a crear producto
+            // Botones de acción
             Button(
                 onClick = onNavigateToCreateProduct,
                 modifier = Modifier
@@ -79,7 +100,6 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Logout
             Button(
                 onClick = onLogout,
                 modifier = Modifier

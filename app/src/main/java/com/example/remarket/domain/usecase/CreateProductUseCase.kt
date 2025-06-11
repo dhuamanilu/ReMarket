@@ -1,6 +1,7 @@
 package com.example.remarket.domain.usecase
 
 //import com.example.remarket.data.repository.ProductRepository
+import com.example.remarket.data.repository.ProductRepository
 import javax.inject.Inject
 
 /**
@@ -9,7 +10,7 @@ import javax.inject.Inject
  * @param repository Implementación de ProductRepository donde se delega la creación.
  */
 class CreateProductUseCase @Inject constructor(
-    //private val repository: ProductRepository
+    private val repository: ProductRepository
 ) {
     /**
      * Ejecuta la operación de creación de producto.
@@ -28,11 +29,11 @@ class CreateProductUseCase @Inject constructor(
         price: Double
     ) {
         // Aquí delegamos en el repositorio para manejar la lógica de datos
-        /*repository.createProduct(
+        repository.createProduct(
             brand = brand,
             model = model,
             storage = storage,
             price = price
-        )*/
+        )
     }
 }

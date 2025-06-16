@@ -2,12 +2,25 @@
 package com.example.remarket.data.repository
 
 import com.example.remarket.data.model.Product
+import com.example.remarket.data.network.ApiService
+import com.example.remarket.util.Resource
+import com.google.gson.JsonParseException
+import com.tuempresa.remarket.data.network.ProductRequest
+import com.tuempresa.remarket.data.network.ProductResponse
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import retrofit2.HttpException
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import javax.inject.Inject // Importar Inject
 
-class ProductRepository @Inject constructor(){
+class ProductRepository @Inject constructor(
+    private val api: ApiService
+){
 
     // Lista de productos “mock” adaptada al nuevo modelo
     private val mockProducts = listOf(
@@ -63,23 +76,48 @@ class ProductRepository @Inject constructor(){
         delay(1000)
         emit(mockProducts)
     }
-    // --- AÑADE ESTA FUNCIÓN ---
-    /**
-     * Simula la creación de un nuevo producto.
-     * En una aplicación real, aquí se haría una llamada a la API o a la base de datos.
-     * @throws Exception si la creación falla (simulado).
-     */
-    suspend fun createProduct(brand: String, model: String, storage: String, price: Double) {
-        // Simular una operación de red o base de datos que toma tiempo
-        delay(1500)
-
-        // En un caso real, podrías añadir el producto a una lista mutable
-        // o verificar si la operación en el servidor fue exitosa.
-        println("Producto creado (simulado): $brand $model, Almacenamiento: $storage, Precio: S/ $price")
-
-        // Aquí podrías lanzar una excepción para probar el manejo de errores
-        // if (brand.equals("error", ignoreCase = true)) {
-        //     throw Exception("Fallo simulado al crear el producto")
-        // }
+    suspend fun createProduct(
+        request: ProductRequest
+    ): Resource<ProductResponse> {
+        return withContext(Dispatchers.IO){
+            try {
+                val response = api.createPublication(request)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        Resource.Success(body)
+                    } else {
+                        Resource.Error("Respuesta vacía del servidor")
+                    }
+                } else {
+                    // Mapear códigos HTTP comunes
+                    val msg = when (response.code()) {
+                        404 -> "Recurso no encontrado (404)"
+                        500 -> "Error interno del servidor (500)"
+                        else -> "Error ${response.code()}: ${response.message()}"
+                    }
+                    Resource.Error(msg)
+                }
+            }
+            catch (e: UnknownHostException) {
+                // No hay conexión a internet / DNS falla
+                Resource.Error("Sin conexión a internet")
+            } catch (e: SocketTimeoutException) {
+                // El servidor tarda demasiado en responder
+                Resource.Error("Tiempo de espera agotado")
+            } catch (e: IOException) {
+                // Otros errores de E/S
+                Resource.Error("Error de red: ${e.localizedMessage}")
+            } catch (e: HttpException) {
+                // Errores HTTP no exitosos fuera de isSuccessful
+                Resource.Error("Error de red: ${e.code()}")
+            } catch (e: JsonParseException) {
+                // JSON mal formado
+                Resource.Error("Respuesta inválida del servidor")
+            } catch (e: Exception) {
+                // Cualquier otro error
+                Resource.Error(e.localizedMessage ?: "Error desconocido")
+            }
+        }
     }
 }

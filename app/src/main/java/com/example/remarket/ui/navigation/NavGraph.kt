@@ -182,7 +182,9 @@ fun AppNavGraph(
         composable(Routes.PRODUCT_CREATE) {
             CreateProductScreen(
                 onNext = {
-                    navController.popBackStack() //
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.PRODUCT_CREATE) { inclusive = true }
+                    }
                 },
                 onNavigateBack = {
                     navController.popBackStack() //

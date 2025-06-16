@@ -4,6 +4,9 @@ package com.example.remarket.ui.product.create
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.remarket.domain.usecase.CreateProductUseCase
+import com.example.remarket.util.Resource
+import com.tuempresa.remarket.data.network.ProductRequest
+import com.tuempresa.remarket.data.network.ProductResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -27,72 +30,64 @@ class CreateProductViewModel @Inject constructor(
     private val _price = MutableStateFlow("")
     val price: StateFlow<String> = _price
 
-    private val _isPosting = MutableStateFlow(false)
-    val isPosting: StateFlow<Boolean> = _isPosting
-
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error
-
+    private val _createState = MutableStateFlow<Resource<ProductResponse>>(Resource.Idle)
+    val createState: StateFlow<Resource<ProductResponse>> = _createState
     fun onBrandChanged(text: String) {
         _brand.value = text
-        _error.value = null
     }
 
     fun onModelChanged(text: String) {
         _modelText.value = text
-        _error.value = null
     }
 
     fun onStorageChanged(text: String) {
         _storageText.value = text
-        _error.value = null
     }
 
     fun onPriceChanged(text: String) {
         // Permitir solo números y un punto decimal
         if (text.matches(Regex("^\\d*\\.?\\d*\$"))) {
             _price.value = text
-            _error.value = null
         }
     }
 
-    /**
-     * Envía la solicitud de creación de producto usando el caso de uso.
-     * Valida que todos los campos estén llenos y que el precio sea numérico.
-     */
     fun submit(onSuccess: () -> Unit) {
-        val brandValue = brand.value.trim()
-        val modelValue = modelText.value.trim()
-        val storageValue = storageText.value.trim()
-        val priceString = price.value.trim()
-        val priceValue = priceString.toDoubleOrNull()
-
-        // Validación mejorada
-        if (brandValue.isEmpty() || modelValue.isEmpty() || storageValue.isEmpty() || priceString.isEmpty()) {
-            _error.value = "Todos los campos son obligatorios"
-            return
-        }
-
-        if (priceValue == null) {
-            _error.value = "El precio debe ser un valor numérico válido"
+        val request = ProductRequest(
+            brand = brand.value.trim(),
+            model = modelText.value.trim(),
+            storage = storageText.value.trim(),
+            price = price.value.trim().toDoubleOrNull() ?: -1.0,
+            imei = "123456789012345",     // usa un campo de IMEI real
+            boxCharger = "Sí",
+            description = "Descripción de prueba"
+        )
+        // Validación
+        if (request.brand.isBlank() || request.model.isBlank() ||
+            request.storage.isBlank() || request.price < 0
+        ) {
+            _createState.value = Resource.Error("Todos los campos son obligatorios y el precio debe ser numérico")
             return
         }
 
         viewModelScope.launch {
-            _isPosting.value = true
-            _error.value = null
-            try {
-                createProductUseCase(
-                    brand = brandValue,
-                    model = modelValue,
-                    storage = storageValue,
-                    price = priceValue
-                )
-                onSuccess()
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Error al publicar el producto"
-            } finally {
-                _isPosting.value = false
+            _createState.value = Resource.Loading
+            when (val result = createProductUseCase(request)) {
+                is Resource.Success -> {
+                    _createState.value = Resource.Success(result.data)
+                    onSuccess()
+                }
+                is Resource.Error -> {
+                    _createState.value = Resource.Error(result.message)
+                }
+                is Resource.Loading -> {
+                    // Aunque normalmente el use case no volverá a emitir Loading aquí,
+                    // lo manejamos para cumplir con la exhaustividad
+                    _createState.value = Resource.Loading
+                }
+                is Resource.Idle-> {
+                    // Manejar el estado inicial si es necesario
+                    _createState.value = Resource.Idle
+                }
             }
         }
     }

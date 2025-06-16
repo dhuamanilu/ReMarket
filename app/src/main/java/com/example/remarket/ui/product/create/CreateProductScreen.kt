@@ -7,6 +7,7 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -16,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.remarket.util.Resource
 
 @Composable
 fun CreateProductScreen(
@@ -29,8 +31,9 @@ fun CreateProductScreen(
     val storageText by viewModel.storageText.collectAsState()
     val price by viewModel.price.collectAsState()
 
-    val isPosting by viewModel.isPosting.collectAsState()
-    val error by viewModel.error.collectAsState()
+    // Observa el estado de creación (Loading / Success / Error)
+    val createState by viewModel.createState.collectAsState()
+
 
     Surface(
         modifier = Modifier
@@ -74,16 +77,48 @@ fun CreateProductScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            if (!error.isNullOrEmpty()) {
-                Text(error!!, color = MaterialTheme.colorScheme.error)
-            }
+            // Aquí reaccionamos al estado de la llamada
+            when (createState) {
+                is Resource.Loading -> {
+                    // Indicador de carga centrado horizontalmente
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentWidth()
+                    )
+                }
+                is Resource.Success -> {
+                    // Llamamos a onNext() para navegar o cerrar pantalla
+                    LaunchedEffect(Unit) {
+                        onNext()
+                    }
+                }
+                is Resource.Error -> {
+                    // Mostramos el mensaje de error
+                    Text(
+                        text = (createState as Resource.Error).message,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
+                is Resource.Idle -> {
+                }
+            }
+            // El botón siempre está habilitado, o podrías deshabilitarlo solo en Loading:
             Button(
                 onClick = { viewModel.submit(onSuccess = onNext) },
-                enabled = !isPosting,
+                enabled = createState !is Resource.Loading,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (isPosting) "Publicando..." else "Siguiente")
+                Text(
+                    text = when (createState) {
+                        Resource.Idle      -> "Siguiente"
+                        is Resource.Loading -> "Publicando..."
+                        is Resource.Error,
+                        is Resource.Success -> "Siguiente"
+                    }
+                )
             }
         }
     }

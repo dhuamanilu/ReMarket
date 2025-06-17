@@ -181,10 +181,10 @@ fun AppNavGraph(
             )
         }
 
-        // Dentro de AppNavGraph, reemplaza la sección PRODUCT_CREATE por esto:
-
         composable(Routes.PRODUCT_CREATE) {
-            // Creamos un NavController independiente para el flujo de creación
+            // 1) Una sola instancia
+            val createVm = hiltViewModel<CreateProductViewModel>()
+            // NavController independiente para el flujo de creación
             val createNavController = rememberNavController()
 
             NavHost(
@@ -194,54 +194,52 @@ fun AppNavGraph(
             ) {
                 composable("step1") {
                     Step1Screen(
-                        viewModel = hiltViewModel<CreateProductViewModel>(),
-                        onNext     = { createNavController.navigate("step2") }
+                        viewModel = createVm,      // << misma instancia
+                        onNext = { createNavController.navigate("step2") }
                     )
                 }
                 composable("step2") {
                     Step2Screen(
-                        viewModel = hiltViewModel<CreateProductViewModel>(),
-                        onNext     = { createNavController.navigate("step3") },
-                        onBack     = { createNavController.popBackStack() }
+                        viewModel = createVm,      // << misma instancia
+                        onNext = { createNavController.navigate("step3") },
+                        onBack = { createNavController.popBackStack() }
                     )
                 }
                 composable("step3") {
                     Step3Screen(
-                        viewModel = hiltViewModel<CreateProductViewModel>(),
-                        onNext     = { createNavController.navigate("review") },
-                        onBack     = { createNavController.popBackStack() }
+                        viewModel = createVm,      // << misma instancia
+                        onBack = { createNavController.popBackStack() },
+                        onSubmit = { createNavController.navigate("review") }
                     )
                 }
                 composable("review") {
                     ReviewScreen(
-                        viewModel  = hiltViewModel<CreateProductViewModel>(),
-                        onSubmit   = {
-                            // Una vez publicado, volvemos al Home y limpiamos la pila
+                        viewModel = createVm,      // << misma instancia
+                        onBack = {
+                            // Tras revisión, volvemos al home y limpiamos la pila de creación
                             navController.navigate(Routes.HOME) {
                                 popUpTo(Routes.PRODUCT_CREATE) { inclusive = true }
                             }
-                        },
-                        onBack     = { createNavController.popBackStack() }
+                        }
                     )
                 }
             }
-        }
 
         // --- Pantallas Placeholder (Implementar UI más adelante) ---
 
-        composable(Routes.ADMIN_HOME) { //
+        /*composable(Routes.ADMIN_HOME) { //
             AdminHomeScreen(onLogout = {
                 navController.navigate(Routes.LOGIN) {
                     popUpTo(Routes.ADMIN_HOME) { inclusive = true } //
                 }
             })
-        }
+        }*/
 
-        composable(Routes.FORGOT_PASSWORD) {
+        /*composable(Routes.FORGOT_PASSWORD) {
             ForgotPasswordScreen(onNavigateBack = { navController.popBackStack() }) //
-        }
+        }*/
 
-        composable(Routes.PURCHASE) { backStackEntry ->
+        /*composable(Routes.PURCHASE) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             PurchaseScreen(
                 productId = productId, //
@@ -251,7 +249,7 @@ fun AppNavGraph(
                         popUpTo(Routes.PURCHASE.replace("{productId}", productId)) { inclusive = true }
                     }
                 }
-            )
+            )*/
         }
     }
 }

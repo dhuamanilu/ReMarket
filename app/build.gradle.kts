@@ -52,6 +52,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.cloudinary.android)
     implementation(libs.androidx.core.i18n)
     ksp(libs.hilt.compiler)
     implementation(libs.material.icons.extended)

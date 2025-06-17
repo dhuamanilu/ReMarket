@@ -12,25 +12,45 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.remarket.util.Resource
 
+/**
+ * Pantalla de revisión: solo muestra estado final del envío.
+ */
 @Composable
 fun ReviewScreen(
     viewModel: CreateProductViewModel = hiltViewModel(),
-    onSubmit: () -> Unit,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Text("Venta en revisión", style = MaterialTheme.typography.titleLarge)
         Text("Esperando periodo de validación")
+
         when (state) {
             is Resource.Loading -> CircularProgressIndicator()
-            is Resource.Error -> Text((state as Resource.Error).message, color = MaterialTheme.colorScheme.error)
-            is Resource.Success -> Icon(Icons.Default.CheckCircle, contentDescription = "Hecho", modifier = Modifier.size(80.dp))
+            is Resource.Error -> Text(
+                text = (state as Resource.Error).message,
+                color = MaterialTheme.colorScheme.error
+            )
+            is Resource.Success -> Icon(
+                Icons.Default.CheckCircle,
+                contentDescription = "Hecho",
+                modifier = Modifier.size(80.dp)
+            )
             else -> {}
         }
 
         Spacer(modifier = Modifier.weight(1f))
-        Button(onClick = { viewModel.submit(onSuccess = onSubmit) }) { Text("Hecho") }
+
+        // Botón para volver o finalizar
+        Button(onClick = onBack) {
+            Text("Volver al inicio")
+        }
     }
 }

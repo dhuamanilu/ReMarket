@@ -18,6 +18,8 @@ compose = "1.4.3"
 coreI18n = "1.0.0"
 
 [libraries]
+cloudinary-android = { module = "com.cloudinary:cloudinary-android", version = "2.5.0" }
+
 moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshi" }
 moshi-kotlin = { module = "com.squareup.moshi:moshi-kotlin", version.ref = "moshi" }
 moshi-converter = { module = "com.squareup.retrofit2:converter-moshi", version.ref = "retrofit" }

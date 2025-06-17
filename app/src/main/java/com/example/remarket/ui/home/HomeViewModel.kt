@@ -4,10 +4,10 @@ package com.example.remarket.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.remarket.data.model.Product
-import com.example.remarket.data.repository.ProductRepository
+import com.example.remarket.domain.usecase.GetProductsUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 data class HomeUiState(
@@ -17,56 +17,49 @@ data class HomeUiState(
     val isLoading: Boolean = false,
     val error: String? = null
 )
-@HiltViewModel // Añadir esta anotación
-class HomeViewModel @Inject constructor( // Modificar constructor para inyección
-    private val productRepository: ProductRepository
+
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val getProducts: GetProductsUseCase
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    val uiState: StateFlow<HomeUiState> = _uiState
 
-    init { // Cargar productos al iniciar el ViewModel
-        loadProducts()
-    }
+    init { loadProducts() }
 
     fun loadProducts() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = true,
-                error = null
-            )
-
+            _uiState.update { it.copy(isLoading = true, error = null) }
             try {
-                productRepository.getAllProducts().collect { products ->
-                    _uiState.value = _uiState.value.copy(
-                        products = products,
-                        filteredProducts = filterProducts(products, _uiState.value.searchQuery),
-                        isLoading = false
-                    )
+                getProducts().collect { list ->
+                    _uiState.update {
+                        it.copy(
+                            products = list,
+                            filteredProducts = filter(list, it.searchQuery),
+                            isLoading = false
+                        )
+                    }
                 }
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = "Error al cargar productos: ${e.message}"
-                )
+            } catch (e: Throwable) {
+                _uiState.update { it.copy(isLoading = false, error = e.localizedMessage) }
             }
         }
     }
 
-    fun onSearchQueryChanged(query: String) {
-        _uiState.value = _uiState.value.copy(
-            searchQuery = query,
-            filteredProducts = filterProducts(_uiState.value.products, query)
-        )
-    }
-
-    private fun filterProducts(products: List<Product>, query: String): List<Product> {
-        if (query.isBlank()) return products
-
-        return products.filter { product ->
-            product.brand.contains(query, ignoreCase = true) ||
-                    product.model.contains(query, ignoreCase = true) ||
-                    product.storage.contains(query, ignoreCase = true)
+    fun onSearchQueryChanged(q: String) {
+        _uiState.update {
+            it.copy(
+                searchQuery = q,
+                filteredProducts = filter(it.products, q)
+            )
         }
     }
+
+    private fun filter(list: List<Product>, q: String) =
+        if (q.isBlank()) list
+        else list.filter {
+            it.brand.contains(q, true) ||
+                    it.model.contains(q, true)  ||
+                    it.storage.contains(q, true)
+        }
 }

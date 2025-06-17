@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun HomeScreen(
-    // Pasa el estado y los eventos desde el NavGraph
     uiState: HomeUiState,
     onSearchQueryChanged: (String) -> Unit,
     onNavigateToProductDetail: (String) -> Unit,

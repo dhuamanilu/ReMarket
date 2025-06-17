@@ -52,7 +52,12 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.core.i18n)
     ksp(libs.hilt.compiler)
+    implementation(libs.material.icons.extended)
+    implementation(libs.moshi)
+    implementation(libs.moshi.kotlin)
+    implementation(libs.moshi.converter)
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
     implementation(libs.okhttp.logging)

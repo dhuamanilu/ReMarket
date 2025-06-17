@@ -3,12 +3,13 @@ package com.example.remarket.ui.product.create
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.remarket.data.network.ProductRequest
 import com.example.remarket.domain.usecase.CreateProductUseCase
 import com.example.remarket.util.Resource
-import com.tuempresa.remarket.data.network.ProductRequest
-import com.tuempresa.remarket.data.network.ProductResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -17,77 +18,73 @@ class CreateProductViewModel @Inject constructor(
     private val createProductUseCase: CreateProductUseCase
 ) : ViewModel() {
 
-    // (El resto de tus StateFlows se mantienen igual)
     private val _brand = MutableStateFlow("")
-    val brand: StateFlow<String> = _brand
+    val brand: StateFlow<String> = _brand.asStateFlow()
 
-    private val _modelText = MutableStateFlow("")
-    val modelText: StateFlow<String> = _modelText
+    private val _model = MutableStateFlow("")
+    val model: StateFlow<String> = _model.asStateFlow()
 
-    private val _storageText = MutableStateFlow("")
-    val storageText: StateFlow<String> = _storageText
+    private val _storage = MutableStateFlow("")
+    val storage: StateFlow<String> = _storage.asStateFlow()
 
-    private val _price = MutableStateFlow("")
-    val price: StateFlow<String> = _price
+    private val _price = MutableStateFlow(0.0)
+    val price: StateFlow<Double> = _price.asStateFlow()
 
-    private val _createState = MutableStateFlow<Resource<ProductResponse>>(Resource.Idle)
-    val createState: StateFlow<Resource<ProductResponse>> = _createState
-    fun onBrandChanged(text: String) {
-        _brand.value = text
-    }
+    private val _imei = MutableStateFlow("")
+    val imei: StateFlow<String> = _imei.asStateFlow()
 
-    fun onModelChanged(text: String) {
-        _modelText.value = text
-    }
+    private val _description = MutableStateFlow("")
+    val description: StateFlow<String> = _description.asStateFlow()
 
-    fun onStorageChanged(text: String) {
-        _storageText.value = text
-    }
+    private val _images = MutableStateFlow<List<String>>(emptyList())
+    val images: StateFlow<List<String>> = _images.asStateFlow()
 
-    fun onPriceChanged(text: String) {
-        // Permitir solo números y un punto decimal
-        if (text.matches(Regex("^\\d*\\.?\\d*\$"))) {
-            _price.value = text
-        }
-    }
+    private val _boxImageUrl = MutableStateFlow("")
+    val boxImageUrl: StateFlow<String> = _boxImageUrl.asStateFlow()
+
+    private val _invoiceUrl = MutableStateFlow("")
+    val invoiceUrl: StateFlow<String> = _invoiceUrl.asStateFlow()
+
+    private val _state = MutableStateFlow<Resource<Unit>>(Resource.Idle)
+    val state: StateFlow<Resource<Unit>> = _state.asStateFlow()
+
+    fun onBrandChanged(value: String) { _brand.value = value }
+    fun onModelChanged(value: String) { _model.value = value }
+    fun onStorageChanged(value: String) { _storage.value = value }
+    fun onPriceChanged(value: Double) { _price.value = value }
+    fun onImeiChanged(value: String) { _imei.value = value }
+    fun onDescriptionChanged(value: String) { _description.value = value }
+    fun addImage(uri: String) { _images.value = _images.value + uri }
+    fun setBoxImage(uri: String) { _boxImageUrl.value = uri }
+    fun setInvoiceImage(uri: String) { _invoiceUrl.value = uri }
+
+    private fun buildRequest(): ProductRequest = ProductRequest(
+        brand = _brand.value,
+        model = _model.value,
+        storage = _storage.value,
+        price = _price.value,
+        imei = _imei.value,
+        description = _description.value,
+        imageUrls = _images.value,
+        boxImageUrl = _boxImageUrl.value.ifBlank { null },
+        invoiceUrl = _invoiceUrl.value.ifBlank { null }
+    )
 
     fun submit(onSuccess: () -> Unit) {
-        val request = ProductRequest(
-            brand = brand.value.trim(),
-            model = modelText.value.trim(),
-            storage = storageText.value.trim(),
-            price = price.value.trim().toDoubleOrNull() ?: -1.0,
-            imei = "123456789012345",     // usa un campo de IMEI real
-            boxCharger = "Sí",
-            description = "Descripción de prueba"
-        )
-        // Validación
-        if (request.brand.isBlank() || request.model.isBlank() ||
-            request.storage.isBlank() || request.price < 0
-        ) {
-            _createState.value = Resource.Error("Todos los campos son obligatorios y el precio debe ser numérico")
+        val req = buildRequest()
+        if (req.brand.isBlank() || req.model.isBlank() || req.storage.isBlank() || req.price <= 0.0 || req.imei.isBlank()) {
+            _state.value = Resource.Error("Completa todos los campos obligatorios")
             return
         }
-
         viewModelScope.launch {
-            _createState.value = Resource.Loading
-            when (val result = createProductUseCase(request)) {
+            _state.value = Resource.Loading
+            when (val result = createProductUseCase(req)) {
                 is Resource.Success -> {
-                    _createState.value = Resource.Success(result.data)
+                    _state.value = Resource.Success(Unit)
                     onSuccess()
                 }
-                is Resource.Error -> {
-                    _createState.value = Resource.Error(result.message)
-                }
-                is Resource.Loading -> {
-                    // Aunque normalmente el use case no volverá a emitir Loading aquí,
-                    // lo manejamos para cumplir con la exhaustividad
-                    _createState.value = Resource.Loading
-                }
-                is Resource.Idle-> {
-                    // Manejar el estado inicial si es necesario
-                    _createState.value = Resource.Idle
-                }
+                is Resource.Error -> _state.value = Resource.Error(result.message)
+                else -> Unit
             }
         }
     }

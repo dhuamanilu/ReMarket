@@ -21,10 +21,13 @@ import com.example.remarket.ui.auth.register.Register2Screen
 import com.example.remarket.ui.auth.register.RegisterViewModel
 import com.example.remarket.ui.home.HomeScreen
 import com.example.remarket.ui.product.detail.ProductDetailScreen
-import com.example.remarket.ui.product.create.CreateProductScreen
 import com.example.remarket.ui.home.HomeScreen // Importa la pantalla real
 import com.example.remarket.ui.home.HomeViewModel // Importa el ViewModel real
 import com.example.remarket.ui.product.create.CreateProductViewModel
+import com.example.remarket.ui.product.create.ReviewScreen
+import com.example.remarket.ui.product.create.Step1Screen
+import com.example.remarket.ui.product.create.Step2Screen
+import com.example.remarket.ui.product.create.Step3Screen
 import com.example.remarket.ui.product.detail.ProductDetailViewModel
 
 // Definición de rutas centralizada y clara
@@ -178,18 +181,50 @@ fun AppNavGraph(
             )
         }
 
-        // Crear producto
+        // Dentro de AppNavGraph, reemplaza la sección PRODUCT_CREATE por esto:
+
         composable(Routes.PRODUCT_CREATE) {
-            CreateProductScreen(
-                onNext = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.PRODUCT_CREATE) { inclusive = true }
-                    }
-                },
-                onNavigateBack = {
-                    navController.popBackStack() //
+            // Creamos un NavController independiente para el flujo de creación
+            val createNavController = rememberNavController()
+
+            NavHost(
+                navController = createNavController,
+                startDestination = "step1",
+                modifier = Modifier.fillMaxSize()
+            ) {
+                composable("step1") {
+                    Step1Screen(
+                        viewModel = hiltViewModel<CreateProductViewModel>(),
+                        onNext     = { createNavController.navigate("step2") }
+                    )
                 }
-            )
+                composable("step2") {
+                    Step2Screen(
+                        viewModel = hiltViewModel<CreateProductViewModel>(),
+                        onNext     = { createNavController.navigate("step3") },
+                        onBack     = { createNavController.popBackStack() }
+                    )
+                }
+                composable("step3") {
+                    Step3Screen(
+                        viewModel = hiltViewModel<CreateProductViewModel>(),
+                        onNext     = { createNavController.navigate("review") },
+                        onBack     = { createNavController.popBackStack() }
+                    )
+                }
+                composable("review") {
+                    ReviewScreen(
+                        viewModel  = hiltViewModel<CreateProductViewModel>(),
+                        onSubmit   = {
+                            // Una vez publicado, volvemos al Home y limpiamos la pila
+                            navController.navigate(Routes.HOME) {
+                                popUpTo(Routes.PRODUCT_CREATE) { inclusive = true }
+                            }
+                        },
+                        onBack     = { createNavController.popBackStack() }
+                    )
+                }
+            }
         }
 
         // --- Pantallas Placeholder (Implementar UI más adelante) ---

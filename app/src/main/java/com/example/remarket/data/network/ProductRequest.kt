@@ -1,17 +1,17 @@
-// File: app/src/main/java/com/tuempresa/remarket/data/network/ProductRequest.kt
-package com.tuempresa.remarket.data.network
+// File: app/src/main/java/com/example/remarket/data/network/ProductRequest.kt
+package com.example.remarket.data.network
 
-import com.google.gson.annotations.SerializedName
+import com.squareup.moshi.JsonClass
 
+@JsonClass(generateAdapter = true)
 data class ProductRequest(
     val brand: String,
     val model: String,
-    @SerializedName("capacity") val storage: String,
+    val storage: String,
     val price: Double,
     val imei: String,
-    @SerializedName("box/cargador") val boxCharger: String,
-    val category: String = "smartphone",
     val description: String,
-    @SerializedName("urlVideo") val videoUrl: String? = null,
-    @SerializedName("invoice/uri") val invoiceUri: String? = null
+    val imageUrls: List<String> = emptyList(),
+    val boxImageUrl: String? = null,
+    val invoiceUrl: String? = null
 )

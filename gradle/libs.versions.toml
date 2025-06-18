@@ -16,6 +16,8 @@ moshi = "1.15.0"
 retrofit = "2.9.0"
 compose = "1.4.3"
 coreI18n = "1.0.0"
+googleServices = "4.4.2"
+
 
 [libraries]
 cloudinary-android = { module = "com.cloudinary:cloudinary-android", version = "2.5.0" }
@@ -53,3 +55,4 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 kotlin-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+google-services     = { id = "com.google.gms.google-services", version.ref = "googleServices" }

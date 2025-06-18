@@ -1,3 +1,12 @@
+// File: app/src/main/java/com/example/remarket/data/model/User.kt
 package com.example.remarket.data.model
 
-//data class User()
+// Descomenta y define la clase User
+data class User(
+    val id: String,
+    val firstName: String,
+    val lastName: String,
+    val email: String,
+    val role: String,
+    val isApproved: Boolean
+)

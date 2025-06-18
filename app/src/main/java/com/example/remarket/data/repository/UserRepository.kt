@@ -1,7 +1,11 @@
+// File: app/src/main/java/com/example/remarket/data/repository/UserRepository.kt
 package com.example.remarket.data.repository
 
+import com.example.remarket.data.model.User
 import com.example.remarket.data.model.UserDto
+import com.example.remarket.data.model.toDomain
 import com.example.remarket.data.network.ApiService
+import com.example.remarket.data.network.RegisterRequest
 import com.example.remarket.util.Resource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,32 +19,47 @@ import javax.inject.Singleton
 @Singleton
 class UserRepository @Inject constructor(private val api: ApiService) {
 
-    // Simula una base de datos de usuarios en memoria.
-    private val users = mutableMapOf(
-        "admin@remarket.com" to "admin123",
-        "user@remarket.com" to "user123",
-        "test@example.com" to "password"
-    )
-
     /**
-     * Valida si las credenciales de un usuario son correctas.
-     * @return El email del usuario si es válido, o null si no lo es.
+     * Crea un nuevo usuario llamando al endpoint de la API.
+     * @return Resource<User> que encapsula el resultado.
      */
-    fun validateUser(email: String, password: String): String? {
-        return if (users[email] == password) email else null
-    }
-
-    /**
-     * Crea un nuevo usuario.
-     * @return True si el usuario fue creado, false si el email ya existía.
-     */
-    fun createUser(email: String, password: String): Boolean {
-        if (users.containsKey(email)) {
-            return false // El usuario ya existe
+    suspend fun createUser(
+        firstName: String,
+        lastName: String,
+        dni: String,
+        phone: String,
+        email: String,
+        password: String,
+        dniFrontUrl: String?,
+        dniBackUrl: String?
+    ): Resource<User> = withContext(Dispatchers.IO) {
+        try {
+            val request = RegisterRequest(
+                firstName = firstName,
+                lastName = lastName,
+                dniNumber = dni,
+                email = email,
+                password = password,
+                dniFrontUrl = dniFrontUrl,
+                dniBackUrl = dniBackUrl
+            )
+            val response = api.registerUser(request)
+            Resource.Success(response.user.toDomain())
+        } catch (e: HttpException) {
+            // Manejar errores HTTP específicos
+            val msg = when (e.code()) {
+                409 -> "El correo electrónico ya está en uso."
+                400 -> "Datos inválidos. Revisa la información."
+                else -> "Error ${e.code()}: ${e.message()}"
+            }
+            Resource.Error(msg)
+        } catch (e: IOException) {
+            Resource.Error("Error de red. Revisa tu conexión a internet.")
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Ocurrió un error inesperado.")
         }
-        users[email] = password
-        return true
     }
+
     suspend fun getUserById(userId: String): Resource<UserDto> = withContext(Dispatchers.IO) {
         try {
             val user = api.getUserById(userId)

@@ -7,11 +7,15 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 import com.example.remarket.data.model.ProductDto
 import com.example.remarket.data.model.UserDto
+import com.example.remarket.data.model.RegisterResponse
 
 import retrofit2.http.GET
 import retrofit2.http.Path
 
 interface ApiService {
+    @POST("auth/register")
+    suspend fun registerUser(@Body request: RegisterRequest): RegisterResponse
+
     @POST("products")
     suspend fun createProduct(@Body request: ProductRequest): ProductDto
     @GET("products")

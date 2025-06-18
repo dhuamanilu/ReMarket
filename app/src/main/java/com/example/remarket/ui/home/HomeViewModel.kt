@@ -9,6 +9,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.remarket.data.network.TokenManager
+import com.google.firebase.auth.FirebaseAuth
 
 data class HomeUiState(
     val products: List<Product> = emptyList(),
@@ -20,7 +22,9 @@ data class HomeUiState(
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val getProducts: GetProductsUseCase
+    private val getProducts: GetProductsUseCase,
+    private val firebaseAuth: FirebaseAuth,
+    private val tokenManager: TokenManager
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState
@@ -62,4 +66,8 @@ class HomeViewModel @Inject constructor(
                     it.model.contains(q, true)  ||
                     it.storage.contains(q, true)
         }
+    fun onLogout() {
+        firebaseAuth.signOut() // Cierra la sesión de Firebase
+        tokenManager.clearToken() // Limpia nuestro token guardado
+    }
 }

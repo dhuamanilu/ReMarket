@@ -159,8 +159,9 @@ fun AppNavGraph(
                     navController.navigate(Routes.PRODUCT_CREATE) //
                 },
                 onLogout = {
+                    homeViewModel.onLogout() // <-- LLAMA AL NUEVO MÉTODO DE LOGOUT
                     navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.HOME) { inclusive = true } //
+                        popUpTo(Routes.HOME) { inclusive = true }
                     }
                 }
             )

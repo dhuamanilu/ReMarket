@@ -1,5 +1,6 @@
 package com.example.remarket.di
 
+import android.content.Context
 import android.util.Log
 import com.example.remarket.data.network.ApiService
 import com.example.remarket.data.network.AuthInterceptor
@@ -18,17 +19,34 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import com.example.remarket.data.network.TokenManager
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import com.example.remarket.data.repository.ConnectivityRepository
+import com.example.remarket.data.repository.IConnectivityRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
+
 
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
-    // 1️⃣ Provider de token "hardcodeado"
-    @Provides @Singleton
-    fun provideTokenProvider(): () -> String = {
-        // Token truncado que ya sabes que funciona
-        "JrC82jDFni1k00WatL2Z:seller"
+    @Provides
+    @Singleton
+    fun provideConnectivityRepository(
+        @ApplicationContext context: Context
+    ): IConnectivityRepository = ConnectivityRepository(context)
+    // --- REEMPLAZA EL TOKEN PROVIDER HARDCODEADO ---
+    @Provides
+    @Singleton
+    fun provideTokenProvider(tokenManager: TokenManager): () -> String = {
+        tokenManager.getToken() ?: "" // Devuelve el token guardado o un string vacío
     }
-    // 1️⃣ Retrofit
+
+    // --- AÑADE UN PROVIDER PARA FIREBASE AUTH ---
+    @Provides
+    @Singleton
+    fun provideFirebaseAuth(): FirebaseAuth = Firebase.auth
 
     @Provides @Singleton
     fun provideLoggingInterceptor(): HttpLoggingInterceptor =

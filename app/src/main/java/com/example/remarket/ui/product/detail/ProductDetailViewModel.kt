@@ -54,7 +54,7 @@ class ProductDetailViewModel @Inject constructor(
                             if (product != null) {
                                 val userResult = userRepo.getUserById(product.sellerId)
                                 if (userResult is Resource.Success) {
-                                    sellerName = userResult.data.name
+                                    sellerName = "${userResult.data.firstName} ${userResult.data.lastName}"
                                 }
                             }
                             _uiState.value = _uiState.value.copy(

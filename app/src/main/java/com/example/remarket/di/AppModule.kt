@@ -2,6 +2,9 @@ package com.example.remarket.di
 
 import android.content.Context
 import android.util.Log
+import androidx.room.Room
+import com.example.remarket.data.local.AppDatabase
+import com.example.remarket.data.local.ProductDao
 import com.example.remarket.data.network.ApiService
 import com.example.remarket.data.network.AuthInterceptor
 import com.example.remarket.data.repository.IProductRepository
@@ -27,7 +30,6 @@ import com.example.remarket.data.repository.ConnectivityRepository
 import com.example.remarket.data.repository.IConnectivityRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 
-
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
@@ -43,10 +45,6 @@ object AppModule {
         tokenManager.getToken() ?: "" // Devuelve el token guardado o un string vacío
     }
 
-    // --- AÑADE UN PROVIDER PARA FIREBASE AUTH ---
-    @Provides
-    @Singleton
-    fun provideFirebaseAuth(): FirebaseAuth = Firebase.auth
 
     @Provides @Singleton
     fun provideLoggingInterceptor(): HttpLoggingInterceptor =
@@ -84,11 +82,28 @@ object AppModule {
 
     // 2️⃣ Repositorios
 
+    @Provides
+    @Singleton
+    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
+        return Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            "remarket_db"
+        ).build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideProductDao(db: AppDatabase): ProductDao = db.productDao()
+
+    // --- MODIFICAR EL PROVIDER DEL REPOSITORIO ---
+
     @Provides @Singleton
     fun provideProductRepository(
-        apiService: ApiService
-    ): IProductRepository = ProductRepository(apiService)
-    // Fíjate que devolvemos la INTERFAZ IProductRepository
+        apiService: ApiService,
+        productDao: ProductDao // <-- Añadir el DAO como dependencia
+    ): IProductRepository = ProductRepository(apiService, productDao) // <-- Pasarlo al constructor
+
 
     @Provides
     @Singleton
@@ -98,4 +113,8 @@ object AppModule {
     @Provides @Singleton
     fun provideGetProductsUseCase(repo: IProductRepository): GetProductsUseCase =
         GetProductsUseCase(repo)
+
+    @Provides
+    @Singleton
+    fun provideFirebaseAuth(): FirebaseAuth = Firebase.auth
 }

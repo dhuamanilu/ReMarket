@@ -1,6 +1,7 @@
 // data/repository/ProductRepository.kt
 package com.example.remarket.data.repository
 
+import com.example.remarket.data.local.ProductDao
 import com.example.remarket.data.model.Product
 import com.example.remarket.data.model.ProductDto
 import com.example.remarket.data.network.ApiService
@@ -17,17 +18,51 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import javax.inject.Inject // Importar Inject
 import com.example.remarket.data.model.toDomain
+import com.example.remarket.data.model.toEntity
 import com.example.remarket.data.network.ProductRequest
 import com.example.remarket.data.network.ReportRequest
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 
 class ProductRepository @Inject constructor(
-    private val api: ApiService
-) : IProductRepository{
-    override suspend fun getAllProducts(): Flow<List<Product>> = flow {
-        val dtos = api.getProducts()
-        emit(dtos.map { it.toDomain() })
+    private val api: ApiService,
+    private val dao: ProductDao // <-- Inyectar el DAO
+) : IProductRepository {
+
+    /**
+     * Esta es la "Fuente de Verdad Única".
+     * La UI siempre observará este flujo, que emite datos desde la BD local.
+     */
+    override fun getAllProducts(): Flow<Resource<List<Product>>> = flow {
+        emit(Resource.Loading)
+        // Emite los datos de la base de datos. map convierte List<ProductEntity> a List<Product>
+        val localDataFlow = dao.getProducts().map { entities ->
+            entities.map { it.toDomain() }
+        }
+
+        localDataFlow.collect { products ->
+            emit(Resource.Success(products))
+        }
+    }
+
+    /**
+     * Única función que habla con la red para obtener la lista de productos.
+     * Obtiene los datos, limpia la BD local y guarda los nuevos.
+     */
+    override suspend fun syncProducts(): Boolean {
+        return try {
+            val remoteProducts = api.getProducts()
+            dao.deleteAll()
+            dao.insertAll(remoteProducts.map { it.toEntity() })
+            true // <-- Devolver true en caso de éxito
+        } catch (e: HttpException) {
+            println("syncProducts Error HTTP: ${e.message()}")
+            false // <-- Devolver false en caso de fallo
+        } catch (e: IOException) {
+            println("syncProducts Error IO: ${e.message}")
+            false // <-- Devolver false en caso de fallo
+        }
     }
     override suspend fun createProduct(request: ProductRequest): Resource<Product> =
         withContext(Dispatchers.IO) {

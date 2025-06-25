@@ -10,64 +10,127 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.example.remarket.data.network.TokenManager
+import com.example.remarket.data.repository.IProductRepository
+import com.example.remarket.util.Resource
 import com.google.firebase.auth.FirebaseAuth
+import com.google.android.gms.tasks.Tasks
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class HomeUiState(
-    val products: List<Product> = emptyList(),
-    val filteredProducts: List<Product> = emptyList(),
+    val allProducts: List<Product> = emptyList(), // Lista completa desde la DB
+    val filteredProducts: List<Product> = emptyList(), // Lista para mostrar en la UI
     val searchQuery: String = "",
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = false, // Usado para el indicador de SwipeRefresh
     val error: String? = null
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val getProducts: GetProductsUseCase,
+    private val productRepository: IProductRepository,
     private val firebaseAuth: FirebaseAuth,
     private val tokenManager: TokenManager
 ) : ViewModel() {
+
     private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    init { loadProducts() }
+    init {
+        fetchToken() // Asegurarse de que el token exista al iniciar
+        observeProducts() // Empezar a escuchar la base de datos local
+        onRefresh() // Realizar la primera sincronización de datos
+    }
 
-    fun loadProducts() {
+    private fun observeProducts() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            try {
-                getProducts().collect { list ->
-                    _uiState.update {
-                        it.copy(
-                            products = list,
-                            filteredProducts = filter(list, it.searchQuery),
-                            isLoading = false
-                        )
+            productRepository.getAllProducts().collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> {
+                        _uiState.update { it.copy(isLoading = true) }
                     }
+                    is Resource.Success -> {
+                        val products = resource.data
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                allProducts = products,
+                                // Aplicar filtro de búsqueda actual a la nueva lista
+                                filteredProducts = filter(products, it.searchQuery),
+                                error = null
+                            )
+                        }
+                    }
+                    is Resource.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = resource.message
+                            )
+                        }
+                    }
+                    else -> {}
                 }
-            } catch (e: Throwable) {
-                _uiState.update { it.copy(isLoading = false, error = e.localizedMessage) }
             }
         }
     }
 
-    fun onSearchQueryChanged(q: String) {
-        _uiState.update {
-            it.copy(
-                searchQuery = q,
-                filteredProducts = filter(it.products, q)
+    /**
+     * Inicia una sincronización de datos desde la red.
+     * Es llamado al inicio y cuando el usuario desliza para refrescar.
+     */
+    fun onRefresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            // Llama al repositorio para sincronizar y captura el resultado
+            val syncSuccess = productRepository.syncProducts()
+
+            // Si la sincronización falló, debemos detener el indicador de carga manualmente.
+            // Si tuvo éxito, el observador de la base de datos se encargará de ello.
+            if (!syncSuccess) {
+                _uiState.update { it.copy(isLoading = false, error = "Fallo la sincronización. Verifica tu conexión.") }
+            }
+        }
+    }
+
+
+    fun onSearchQueryChanged(query: String) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                searchQuery = query,
+                filteredProducts = filter(currentState.allProducts, query)
             )
         }
     }
 
-    private fun filter(list: List<Product>, q: String) =
-        if (q.isBlank()) list
-        else list.filter {
-            it.brand.contains(q, true) ||
-                    it.model.contains(q, true)  ||
-                    it.storage.contains(q, true)
+    private fun filter(list: List<Product>, q: String): List<Product> =
+        if (q.isBlank()) {
+            list
+        } else {
+            list.filter {
+                it.brand.contains(q, true) ||
+                        it.model.contains(q, true) ||
+                        it.storage.contains(q, true)
+            }
         }
+
+    fun fetchToken() {
+        if (tokenManager.getToken() == null && firebaseAuth.currentUser != null) {
+            viewModelScope.launch {
+                try {
+                    val tokenResult = withContext(Dispatchers.IO) {
+                        Tasks.await(firebaseAuth.currentUser!!.getIdToken(true))
+                    }
+                    tokenManager.saveToken(tokenResult.token ?: "")
+                } catch (e: Exception) {
+                    _uiState.update { it.copy(error = "No se pudo refrescar la sesión.") }
+                }
+            }
+        }
+    }
+
     fun onLogout() {
-        firebaseAuth.signOut() // Cierra la sesión de Firebase
-        tokenManager.clearToken() // Limpia nuestro token guardado
+        firebaseAuth.signOut()
+        tokenManager.clearToken()
     }
 }

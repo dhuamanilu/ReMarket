@@ -29,6 +29,7 @@ import com.example.remarket.ui.product.create.Step1Screen
 import com.example.remarket.ui.product.create.Step2Screen
 import com.example.remarket.ui.product.create.Step3Screen
 import com.example.remarket.ui.product.detail.ProductDetailViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 // Definición de rutas centralizada y clara
 object Routes {
@@ -46,34 +47,43 @@ object Routes {
 
 @Composable
 fun AppNavGraph(
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    // Inyecta FirebaseAuth para verificar el usuario actual
+    firebaseAuth: FirebaseAuth
 ) {
+    // Determina la ruta inicial basándose en si el usuario está logueado
+    val startDestination = if (firebaseAuth.currentUser != null) {
+        Routes.HOME
+    } else {
+        Routes.LOGIN
+    }
+
     NavHost(
         navController = navController,
-        startDestination = Routes.LOGIN
+        startDestination = startDestination // <-- La ruta de inicio ahora es dinámica
     ) {
         // Pantalla de Login
         composable(Routes.LOGIN) {
-            val loginViewModel: LoginViewModel = hiltViewModel() //
+            val loginViewModel: LoginViewModel = hiltViewModel()
 
             // Manejar eventos de navegación del LoginViewModel
             LaunchedEffect(key1 = loginViewModel.navigationEvent) {
                 loginViewModel.navigationEvent.collect { event ->
                     when (event) {
                         is NavigationEvent.NavigateToHome -> {
-                            navController.navigate(Routes.HOME) { //
+                            navController.navigate(Routes.HOME) {
                                 popUpTo(Routes.LOGIN) { inclusive = true }
                             }
-                            loginViewModel.clearNavigationEvent() //
+                            loginViewModel.clearNavigationEvent()
                         }
                         is NavigationEvent.NavigateToAdmin -> {
-                            navController.navigate(Routes.ADMIN_HOME) { //
+                            navController.navigate(Routes.ADMIN_HOME) {
                                 popUpTo(Routes.LOGIN) { inclusive = true }
                             }
                             loginViewModel.clearNavigationEvent()
                         }
                         is NavigationEvent.NavigateToForgotPassword -> {
-                            navController.navigate(Routes.FORGOT_PASSWORD) //
+                            navController.navigate(Routes.FORGOT_PASSWORD)
                             loginViewModel.clearNavigationEvent()
                         }
                         null -> { /* No hacer nada */ }
@@ -81,13 +91,11 @@ fun AppNavGraph(
                 }
             }
 
-            LoginScreen( //
+            LoginScreen(
                 viewModel = loginViewModel,
                 onNavigateToRegister = {
-                    navController.navigate(Routes.REGISTER_FLOW) // Navega al gráfico de registro
+                    navController.navigate(Routes.REGISTER_FLOW)
                 },
-                // Las siguientes navegaciones son manejadas por el LaunchedEffect
-                // pero se mantienen por si se necesitan para otros flujos.
                 onNavigateToHome = {
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
@@ -109,57 +117,59 @@ fun AppNavGraph(
             startDestination = Routes.REGISTER_1,
             route = Routes.REGISTER_FLOW
         ) {
-            composable(Routes.REGISTER_1) { backStackEntry ->
-                // Obtenemos el backStackEntry del gráfico padre ("register_flow")
-                val parentEntry = remember(backStackEntry) {
-                    navController.getBackStackEntry(Routes.REGISTER_FLOW)
-                }
-                // El ViewModel se asocia al gráfico padre, por lo tanto, se comparte
-                val registerViewModel: RegisterViewModel = hiltViewModel(parentEntry)
-
-                Register1Screen( //
-                    onBack = { navController.popBackStack() }, //
-                    onNext = { navController.navigate(Routes.REGISTER_2) },
-                    viewModel = registerViewModel
-                )
+        composable(Routes.REGISTER_1) { backStackEntry ->
+            val parentEntry = remember(backStackEntry) {
+                navController.getBackStackEntry(Routes.REGISTER_FLOW)
             }
+            val registerViewModel: RegisterViewModel = hiltViewModel(parentEntry)
 
-            composable(Routes.REGISTER_2) { backStackEntry ->
-                val parentEntry = remember(backStackEntry) {
-                    navController.getBackStackEntry(Routes.REGISTER_FLOW)
-                }
-                val registerViewModel: RegisterViewModel = hiltViewModel(parentEntry)
-
-                Register2Screen(
-                    onBack = { navController.popBackStack() }, //
-                    onRegister = {
-                        // Al registrarse, volver al Login y limpiar la pila de registro
-                        navController.navigate(Routes.LOGIN) {
-                            popUpTo(Routes.REGISTER_FLOW) { inclusive = true } //
-                        }
-                    },
-                    viewModel = registerViewModel
-                )
-            }
+            Register1Screen(
+                onBack = { navController.popBackStack() },
+                onNext = { navController.navigate(Routes.REGISTER_2) },
+                viewModel = registerViewModel
+            )
         }
+
+        composable(Routes.REGISTER_2) { backStackEntry ->
+            val parentEntry = remember(backStackEntry) {
+                navController.getBackStackEntry(Routes.REGISTER_FLOW)
+            }
+            val registerViewModel: RegisterViewModel = hiltViewModel(parentEntry)
+
+            Register2Screen(
+                onBack = { navController.popBackStack() },
+                onRegister = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.REGISTER_FLOW) { inclusive = true }
+                    }
+                },
+                viewModel = registerViewModel
+            )
+        }
+    }
 
         // Pantalla principal (Home)
         composable(Routes.HOME) {
-            val homeViewModel: HomeViewModel = hiltViewModel() //
+            val homeViewModel: HomeViewModel = hiltViewModel()
             val uiState by homeViewModel.uiState.collectAsState()
+
+            // Al iniciar Home, si el token está vacío, intenta obtenerlo.
+            LaunchedEffect(Unit) {
+                homeViewModel.fetchToken()
+            }
 
             HomeScreen(
                 uiState = uiState,
-                onSearchQueryChanged = homeViewModel::onSearchQueryChanged, //
+                onSearchQueryChanged = homeViewModel::onSearchQueryChanged,
+                onRefresh = homeViewModel::onRefresh, // <-- AÑADIR ESTA LÍNEA
                 onNavigateToProductDetail = { productId ->
-                    // Navegación segura y limpia
                     navController.navigate(Routes.PRODUCT_DETAIL.replace("{productId}", productId))
                 },
                 onNavigateToCreateProduct = {
-                    navController.navigate(Routes.PRODUCT_CREATE) //
+                    navController.navigate(Routes.PRODUCT_CREATE)
                 },
                 onLogout = {
-                    homeViewModel.onLogout() // <-- LLAMA AL NUEVO MÉTODO DE LOGOUT
+                    homeViewModel.onLogout()
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(Routes.HOME) { inclusive = true }
                     }

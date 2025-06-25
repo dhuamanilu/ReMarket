@@ -14,6 +14,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 
 
 /**
@@ -23,50 +25,57 @@ import androidx.compose.ui.unit.dp
 fun HomeScreen(
     uiState: HomeUiState,
     onSearchQueryChanged: (String) -> Unit,
+    onRefresh: () -> Unit, // Callback para iniciar la actualización
     onNavigateToProductDetail: (String) -> Unit,
     onNavigateToCreateProduct: () -> Unit,
     onLogout: () -> Unit
 ) {
+    // Estado para el componente SwipeRefresh, controlado por el ViewModel
+    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = uiState.isLoading)
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        // Envolvemos todo en SwipeRefresh
+        SwipeRefresh(
+            state = swipeRefreshState,
+            onRefresh = onRefresh, // Se llama cuando el usuario desliza
+            modifier = Modifier.fillMaxSize()
         ) {
-            Text(
-                text = "Bienvenido a ReMarket",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
-
-            // Campo de búsqueda (opcional pero recomendado)
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = onSearchQueryChanged,
-                label = { Text("Buscar por marca, modelo...") },
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            )
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Bienvenido a ReMarket",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                )
 
-            // Manejo de estados de carga y error
-            when {
-                uiState.isLoading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                }
-                uiState.error != null -> {
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = onSearchQueryChanged,
+                    label = { Text("Buscar por marca, modelo...") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                )
+
+                // Si hay un error y no hay productos cacheados, muestra el error.
+                if (uiState.error != null && uiState.allProducts.isEmpty()) {
                     Text(
                         text = uiState.error,
                         color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 20.dp)
                     )
-                }
-                else -> {
-                    // Lista de productos reales del estado
+                } else {
+                    // La lista siempre se muestra desde el estado, incluso si está vacía.
                     LazyColumn(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -83,29 +92,29 @@ fun HomeScreen(
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Botones de acción
-            Button(
-                onClick = onNavigateToCreateProduct,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-            ) {
-                Text(text = "Crear nuevo producto")
-            }
+                // Botones de acción
+                Button(
+                    onClick = onNavigateToCreateProduct,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                ) {
+                    Text(text = "Vender un producto")
+                }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Button(
-                onClick = onLogout,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-            ) {
-                Text(text = "Cerrar sesión")
+                Button(
+                    onClick = onLogout,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                ) {
+                    Text(text = "Cerrar sesión")
+                }
             }
         }
     }

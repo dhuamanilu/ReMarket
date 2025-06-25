@@ -7,7 +7,10 @@ import com.example.remarket.util.Resource
 import kotlinx.coroutines.flow.Flow
 
 interface IProductRepository {
-    suspend fun getAllProducts(): Flow<List<Product>>
+    // Este Flow ahora leerá desde la DB local
+    fun getAllProducts(): Flow<Resource<List<Product>>>
+    // Nueva función para forzar la sincronización con la red
+    suspend fun syncProducts(): Boolean
     suspend fun createProduct(request: ProductRequest): Resource<Product>
     suspend fun getProductById(productId: String): Flow<Resource<Product>>
     suspend fun toggleFavorite(productId: String): Flow<Boolean>

@@ -1,9 +1,13 @@
 // data/repository/ProductRepository.kt
 package com.example.remarket.data.repository
 
+import android.content.Context
+import android.net.Uri
+import android.util.Log
 import com.example.remarket.data.local.ProductDao
 import com.example.remarket.data.model.Product
 import com.example.remarket.data.model.ProductDto
+import com.example.remarket.data.model.ProductEntity
 import com.example.remarket.data.network.ApiService
 import com.example.remarket.util.Resource
 import com.google.gson.JsonParseException
@@ -21,13 +25,27 @@ import com.example.remarket.data.model.toDomain
 import com.example.remarket.data.model.toEntity
 import com.example.remarket.data.network.ProductRequest
 import com.example.remarket.data.network.ReportRequest
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import java.util.concurrent.TimeUnit
+import com.example.remarket.data.worker.SyncWorker
+import androidx.work.*
+import com.google.firebase.auth.FirebaseAuth
+import java.time.ZonedDateTime
+import java.util.UUID
+import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
 
 class ProductRepository @Inject constructor(
     private val api: ApiService,
-    private val dao: ProductDao // <-- Inyectar el DAO
+    private val dao: ProductDao,
+    private val cloudinaryService: CloudinaryService,
+    private val connectivityRepository: IConnectivityRepository,
+    private val firebaseAuth: FirebaseAuth,
+    @ApplicationContext private val context: Context
 ) : IProductRepository {
 
     /**
@@ -48,13 +66,22 @@ class ProductRepository @Inject constructor(
 
     /**
      * Única función que habla con la red para obtener la lista de productos.
-     * Obtiene los datos, limpia la BD local y guarda los nuevos.
+     * Obtiene los datos, limpia la BD local DE PRODUCTOS SINCRONIZADOS y guarda los nuevos.
      */
     override suspend fun syncProducts(): Boolean {
+        // --- LÓGICA MODIFICADA ---
         return try {
+            // 1. Obtiene los productos frescos de la red.
             val remoteProducts = api.getProducts()
-            dao.deleteAll()
+
+            // 2. Borra únicamente los productos que estaban previamente sincronizados.
+            //    Los productos creados offline (isSynced = false) permanecerán en la BD.
+            dao.deleteSynced()
+
+            // 3. Inserta los nuevos datos. La estrategia OnConflict.REPLACE se encargará
+            //    de actualizar cualquier producto que pudiera haber cambiado.
             dao.insertAll(remoteProducts.map { it.toEntity() })
+
             true // <-- Devolver true en caso de éxito
         } catch (e: HttpException) {
             println("syncProducts Error HTTP: ${e.message()}")
@@ -64,17 +91,107 @@ class ProductRepository @Inject constructor(
             false // <-- Devolver false en caso de fallo
         }
     }
-    override suspend fun createProduct(request: ProductRequest): Resource<Product> =
-        withContext(Dispatchers.IO) {
-            try {
-                val dto = api.createProduct(request)
-                Resource.Success(dto.toDomain())
-            } catch (e: IOException) {
-                Resource.Error("Error de red: ${e.localizedMessage}")
-            } catch (e: HttpException) {
-                Resource.Error("HTTP error: ${e.code()}")
+
+    /**
+     * Copia el contenido de una URI (content:// o file://) a un archivo
+     * en el almacenamiento interno de la app para asegurar acceso persistente.
+     */
+    private fun copyUriToInternalStorage(uriString: String, childFolder: String): String? {
+        if (uriString.isBlank()) return null
+        return try {
+            val inputStream: InputStream = context.contentResolver.openInputStream(Uri.parse(uriString)) ?: return null
+
+            // Crea un directorio para las imágenes offline si no existe
+            val offlineImagesDir = File(context.filesDir, childFolder)
+            if (!offlineImagesDir.exists()) {
+                offlineImagesDir.mkdirs()
             }
+
+            // Crea un archivo único en el directorio
+            val file = File(offlineImagesDir, "offline_img_${System.currentTimeMillis()}.jpg")
+            val outputStream = FileOutputStream(file)
+
+            // Copia los datos
+            inputStream.use { input ->
+                outputStream.use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            // Devuelve la URI del archivo copiado, que es persistente
+            Uri.fromFile(file).toString()
+        } catch (e: Exception) {
+            Log.e("ProductRepository", "Error al copiar URI a almacenamiento interno", e)
+            null // Devuelve null si falla la copia
         }
+    }
+
+    override suspend fun createProduct(
+        request: ProductRequest,
+        imageUris: List<String>,
+        boxImageUri: String?,
+        invoiceUri: String?
+    ): Resource<Product> = withContext(Dispatchers.IO) {
+        if (connectivityRepository.isNetworkAvailable()) {
+            // --- Flujo Online (sin cambios) ---
+            try {
+                val uploadedImageUrls = imageUris.map { cloudinaryService.uploadImage(context, it) }
+                val uploadedBoxUrl = boxImageUri?.let { cloudinaryService.uploadImage(context, it) }
+                val uploadedInvoiceUrl = invoiceUri?.let { cloudinaryService.uploadImage(context, it) }
+
+                val finalRequest = request.copy(
+                    imageUrls = uploadedImageUrls,
+                    boxImageUrl = uploadedBoxUrl,
+                    invoiceUrl = uploadedInvoiceUrl
+                )
+
+                val productDto = api.createProduct(finalRequest)
+                dao.insert(productDto.toEntity())
+                Resource.Success(productDto.toDomain())
+            } catch (e: Exception) {
+                Resource.Error("Error al crear el producto online: ${e.message}")
+            }
+        } else {
+            // --- Flujo Offline (LÍNEAS MODIFICADAS) ---
+            val temporaryId = "offline_${UUID.randomUUID()}"
+            val currentUserId = firebaseAuth.currentUser?.uid
+            if (currentUserId == null) {
+                // Si no hay usuario, no se puede crear el producto offline.
+                // Esto es un caso extremo pero necesario de manejar.
+                return@withContext Resource.Error("No se pudo identificar al usuario para la creación offline.")
+            }
+            val localImagePaths = imageUris.mapNotNull { copyUriToInternalStorage(it, "product_images") }
+            val localBoxImagePath = boxImageUri?.let { copyUriToInternalStorage(it, "box_images") } ?: ""
+            val localInvoicePath = invoiceUri?.let { copyUriToInternalStorage(it, "invoice_images") } ?: ""
+
+            // 2. Verifica si las imágenes principales se pudieron copiar
+            if (localImagePaths.size != imageUris.size) {
+                return@withContext Resource.Error("Error al guardar las imágenes para el modo offline. Intenta de nuevo.")
+            }
+
+            val newProductEntity = ProductEntity(
+                id = temporaryId,
+                sellerId = currentUserId, // <-- LÍNEA MODIFICADA
+                brand = request.brand,
+                model = request.model,
+                storage = request.storage,
+                price = request.price,
+                imei = request.imei,
+                description = request.description,
+                imageUrls = localImagePaths, // Guardamos URIs locales temporalmente
+                boxImageUrl = localBoxImagePath?: "",
+                invoiceUrl = localInvoicePath,
+                status = "pending_sync",
+                active = true,
+                createdAt = ZonedDateTime.now().toString(),
+                updatedAt = ZonedDateTime.now().toString(),
+                isSynced = false // <-- MARCADO PARA SINCRONIZACIÓN
+            )
+            dao.insert(newProductEntity)
+            triggerOfflineSync() // Agenda el trabajo de sincronización
+            Resource.Success(newProductEntity.toDomain())
+        }
+    }
     override suspend fun getProductById(productId: String): Flow<Resource<Product>> = flow {
         try {
             // Llamada al endpoint específico
@@ -114,4 +231,91 @@ class ProductRepository @Inject constructor(
             emit(false)
         }
     }.flowOn(Dispatchers.IO)
+
+    override suspend fun syncOfflineCreations(): Boolean = withContext(Dispatchers.IO) {
+        val unsyncedProducts = dao.getUnsyncedProducts()
+        if (unsyncedProducts.isEmpty()) {
+            Log.d("ProductRepository", "syncOfflineCreations: No hay productos para sincronizar.") // <-- LOG 1
+            return@withContext true
+        }
+        Log.d("ProductRepository", "syncOfflineCreations: Encontrados ${unsyncedProducts.size} productos para sincronizar.") // <-- LOG 2
+
+        var allSucceeded = true
+        for (product in unsyncedProducts) {
+            try {
+                Log.d("ProductRepository", "syncOfflineCreations: Sincronizando producto con ID local ${product.id}") // <-- LOG 3
+
+                // 1. Sube las imágenes locales a Cloudinary
+                val uploadedImageUrls = product.imageUrls.map { cloudinaryService.uploadImage(context, it) }
+                val boxUrl = if (product.boxImageUrl.isNotBlank()) cloudinaryService.uploadImage(context, product.boxImageUrl) else null
+                val invoiceUrl = if (product.invoiceUrl.isNotBlank()) cloudinaryService.uploadImage(context, product.invoiceUrl) else null
+
+                // 2. Crea el request para la API
+                val request = ProductRequest(
+                    brand = product.brand,
+                    model = product.model,
+                    storage = product.storage,
+                    price = product.price,
+                    imei = product.imei,
+                    description = product.description,
+                    imageUrls = uploadedImageUrls,
+                    boxImageUrl = boxUrl,
+                    invoiceUrl = invoiceUrl
+                )
+
+                // 3. Llama a la API para crear el producto
+                val syncedDto = api.createProduct(request)
+
+                // 4. Si tiene éxito, borra el producto local temporal
+                dao.deleteById(product.id)
+
+                // 5. Inserta el producto real del servidor
+                dao.insert(syncedDto.toEntity())
+                Log.d("ProductRepository", "syncOfflineCreations: Producto ${product.id} sincronizado exitosamente.") // <-- LOG 4
+                (product.imageUrls + product.boxImageUrl + product.invoiceUrl).forEach { uriString ->
+                    if (uriString.isNotBlank()) {
+                        try {
+                            val file = File(Uri.parse(uriString).path!!)
+                            if (file.exists()) {
+                                file.delete()
+                            }
+                        } catch (e: Exception) {
+                            Log.e("ProductRepository", "Error al borrar archivo local: $uriString", e)
+                        }
+                    }
+                }
+
+            } catch (e: Exception) {
+                Log.e("ProductRepository", "syncOfflineCreations: Falló la sincronización para el producto ${product.id}", e) // <-- LOG 5
+                allSucceeded = false
+                continue // Continúa con el siguiente producto
+            }
+        }
+        return@withContext allSucceeded
+    }
+
+    override fun triggerOfflineSync() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val syncWorkRequest = OneTimeWorkRequestBuilder<SyncWorker>()
+            .setConstraints(constraints)
+            // --- INICIO DE LA CORRECCIÓN ---
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                30, // Tiempo de espera inicial antes de reintentar
+                TimeUnit.SECONDS // Unidad de tiempo
+            )
+            // --- FIN DE LA CORRECCIÓN ---
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            SyncWorker.WORK_NAME,
+            ExistingWorkPolicy.KEEP,
+            syncWorkRequest
+        )
+        Log.d("ProductRepository", "Se solicitó un trabajo de sincronización con política KEEP.")
+    }
+
 }

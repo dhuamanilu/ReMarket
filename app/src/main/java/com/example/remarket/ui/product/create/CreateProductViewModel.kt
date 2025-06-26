@@ -15,11 +15,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.util.Log
+import com.example.remarket.data.model.Product
+import com.example.remarket.data.repository.IProductRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 @HiltViewModel
 class CreateProductViewModel @Inject constructor(
     private val createProductUseCase: CreateProductUseCase,
-    private val cloudinaryService: CloudinaryService  // Inyectamos servicio de Cloudinary
+    // El contexto ya no es necesario en la función submit porque se inyecta aquí
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _brand = MutableStateFlow("")
@@ -52,8 +56,9 @@ class CreateProductViewModel @Inject constructor(
     private val _invoiceUrl = MutableStateFlow("")
     val invoiceUrl: StateFlow<String> = _invoiceUrl.asStateFlow()
 
-    private val _state = MutableStateFlow<Resource<Unit>>(Resource.Idle)
-    val state: StateFlow<Resource<Unit>> = _state.asStateFlow()
+    // El estado ahora puede ser de un producto o de nada (Unit)
+    private val _state = MutableStateFlow<Resource<Product>>(Resource.Idle)
+    val state: StateFlow<Resource<Product>> = _state.asStateFlow()
 
     fun onBrandChanged(value: String) { _brand.value = value }
     fun onModelChanged(value: String) { _model.value = value }
@@ -69,9 +74,6 @@ class CreateProductViewModel @Inject constructor(
     fun setBoxImage(uri: String) { _boxImageUrl.value = uri }
     fun setInvoiceImage(uri: String) { _invoiceUrl.value = uri }
 
-    /**
-     * Valida campos individualmente y devuelve mensaje específico.
-     */
     private fun validate(): String? {
         return when {
             brand.value.isBlank() -> "Por favor ingresa la marca."
@@ -79,69 +81,44 @@ class CreateProductViewModel @Inject constructor(
             storage.value.isBlank() -> "Por favor ingresa el almacenamiento."
             price.value <= 0.0 -> "Por favor ingresa un precio válido."
             imei.value.isBlank() -> "Por favor ingresa el IMEI."
+            images.value.isEmpty() -> "Debes agregar al menos una foto del producto."
             else -> null
         }
     }
-    fun submit(context: Context, onSuccess: () -> Unit) {
-        // Validación individual
+
+    // --- FUNCIÓN SUBMIT CORREGIDA ---
+    fun submit(onSuccess: () -> Unit) {
         validate()?.let { msg ->
             _state.value = Resource.Error(msg)
             return
         }
 
-
         viewModelScope.launch {
             _state.value = Resource.Loading
-            Log.d("CreateProductVM", "Inicio de submit()")
-            try {
-                Log.d("CreateProductVM", "Subiendo imágenes del producto")
-                // 1) Sube fotos del producto
-                val uploadedImages = _images.value.map { localUri ->
-                    Log.d("CreateProductVM", "Subiendo imagen: $localUri")
-                    cloudinaryService.uploadImage(context,localUri)
-                }
 
-                // 2) Sube foto de la caja (si existe)
-                val boxUrl = _boxImageUrl.value.takeIf { it.isNotBlank() }
-                    ?.let {
-                        Log.d("CreateProductVM", "Subiendo caja: $it")
-                        cloudinaryService.uploadImage(context,it)
-                    }
+            val request = ProductRequest(
+                brand = _brand.value,
+                model = _model.value,
+                storage = _storage.value,
+                price = _price.value,
+                imei = _imei.value,
+                description = _description.value,
+                imageUrls = emptyList(), // Las URIs se pasan por separado
+                boxImageUrl = null,
+                invoiceUrl = null
+            )
 
-                Log.d("CreateProductVM", "Subiendo imagen de factura")
-                // 3) Sube foto de la factura (si existe)
-                val invoiceUrl = _invoiceUrl.value.takeIf { it.isNotBlank() }
-                    ?.let { Log.d("CreateProductVM", "Subiendo factura: $it")
-                        cloudinaryService.uploadImage(context,it)
-                    }
+            val result = createProductUseCase(
+                request = request,
+                imageUris = _images.value,
+                boxImageUri = _boxImageUrl.value.takeIf { it.isNotBlank() },
+                invoiceUri = _invoiceUrl.value.takeIf { it.isNotBlank() }
+            )
 
-                Log.d("CreateProductVM", "Construyendo ProductRequest")
+            _state.value = result // El estado ahora refleja el resultado directamente
 
-                // 4) Reconstruye el request con las URLs en la nube
-                val req = ProductRequest(
-                    brand = _brand.value,
-                    model = _model.value,
-                    storage = _storage.value,
-                    price = _price.value,
-                    imei = _imei.value,
-                    description = _description.value,
-                    imageUrls = uploadedImages,
-                    boxImageUrl = boxUrl,
-                    invoiceUrl = invoiceUrl
-                )
-                Log.d("CreateProductVM", "Llamando a createProductUseCase")
-                // 5) Envía al backend
-                when (val result = createProductUseCase(req)) {
-                    is Resource.Success -> {
-                        _state.value = Resource.Success(Unit)
-                        onSuccess()
-                    }
-                    is Resource.Error -> _state.value = Resource.Error(result.message)
-                    Resource.Idle -> TODO()
-                    Resource.Loading -> TODO()
-                }
-            } catch(e: Exception) {
-                _state.value = Resource.Error("Error subiendo imágenes: ${e.message}")
+            if (result is Resource.Success) {
+                onSuccess()
             }
         }
     }

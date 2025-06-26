@@ -15,6 +15,8 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FileInputStream
+import java.io.IOException
 import java.io.InputStream
 // En algún lugar seguro (p. ej. BuildConfig o un object Constants)
 object CloudinaryConfig {
@@ -49,11 +51,22 @@ class CloudinaryService @Inject constructor(
     }
 
     fun uriToFile(context: Context, uri: Uri): File {
-        val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+        // --- LÓGICA MODIFICADA PARA SER MÁS ROBUSTA ---
+        val inputStream: InputStream? = if (uri.scheme == "content") {
+            context.contentResolver.openInputStream(uri)
+        } else {
+            // Asume que es una URI de archivo (file:///)
+            uri.path?.let { File(it) }?.let { FileInputStream(it) }
+        }
+
+        if (inputStream == null) {
+            throw IOException("No se pudo obtener un InputStream de la URI: $uri")
+        }
+
         val tempFile = File.createTempFile("upload_", ".jpg", context.cacheDir)
         val outputStream = FileOutputStream(tempFile)
 
-        inputStream?.use { input ->
+        inputStream.use { input ->
             outputStream.use { output ->
                 input.copyTo(output)
             }

@@ -1,6 +1,7 @@
 // ui/home/HomeViewModel.kt
 package com.example.remarket.ui.home
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.remarket.data.model.Product
@@ -36,9 +37,9 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     init {
-        fetchToken() // Asegurarse de que el token exista al iniciar
-        observeProducts() // Empezar a escuchar la base de datos local
-        onRefresh() // Realizar la primera sincronización de datos
+        fetchToken()
+        observeProducts()
+        onRefresh()
     }
 
     private fun observeProducts() {
@@ -54,7 +55,6 @@ class HomeViewModel @Inject constructor(
                             it.copy(
                                 isLoading = false,
                                 allProducts = products,
-                                // Aplicar filtro de búsqueda actual a la nueva lista
                                 filteredProducts = filter(products, it.searchQuery),
                                 error = null
                             )
@@ -80,15 +80,27 @@ class HomeViewModel @Inject constructor(
      */
     fun onRefresh() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isLoading = true, error = null) }
 
-            // Llama al repositorio para sincronizar y captura el resultado
-            val syncSuccess = productRepository.syncProducts()
+            // --- INICIO DE CAMBIOS ---
+            // PASO 1: En lugar de ejecutar la sincronización aquí,
+            // simplemente le pedimos a WorkManager que lo haga.
+            // WorkManager se encargará de no duplicar el trabajo.
+            Log.d("HomeViewModel", "onRefresh: Solicitando sincronización de creaciones offline.")
+            productRepository.triggerOfflineSync()
 
-            // Si la sincronización falló, debemos detener el indicador de carga manualmente.
-            // Si tuvo éxito, el observador de la base de datos se encargará de ello.
-            if (!syncSuccess) {
-                _uiState.update { it.copy(isLoading = false, error = "Fallo la sincronización. Verifica tu conexión.") }
+            // PASO 2: La responsabilidad de onRefresh ahora es solo
+            // traer la lista actualizada de productos desde el servidor.
+            val remoteSyncSuccess = productRepository.syncProducts()
+            if (!remoteSyncSuccess && _uiState.value.allProducts.isEmpty()) {
+                _uiState.update { it.copy(error = "Fallo la sincronización. Verifica tu conexión.") }
+            }
+
+            // El isLoading se pondrá en false automáticamente cuando el Flow
+            // de `observeProducts` emita el nuevo estado (ya sea con éxito o con error).
+            // Si la sincronización remota falla, nos aseguramos de quitar el loading.
+            if(!remoteSyncSuccess){
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }

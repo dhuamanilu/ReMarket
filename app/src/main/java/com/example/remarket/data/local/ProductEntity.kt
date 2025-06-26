@@ -20,7 +20,11 @@ data class ProductEntity(
     val status: String,
     val active: Boolean,
     val createdAt: String,
-    val updatedAt: String
+    val updatedAt: String,
+    // --- CAMPOS NUEVOS PARA SINCRONIZACIÓN ---
+    val isSynced: Boolean = true, // Por defecto, los que vienen de la red están sincronizados
+    val requiresSync: Boolean = false, // Para modificaciones offline
+    val deletedLocally: Boolean = false // Para borrados offline
 )
 
 // --- MAPPERS ---
@@ -41,7 +45,9 @@ fun ProductEntity.toDomain(): Product = Product(
     status = status,
     active = active,
     createdAt = createdAt,
-    updatedAt = updatedAt
+    updatedAt = updatedAt ,
+    isSynced = isSynced // <-- AÑADIR ESTA LÍNEA
+
 )
 
 // Convierte del DTO de la Red a la Entidad de la DB (para guardar en Room)
@@ -60,5 +66,8 @@ fun ProductDto.toEntity(): ProductEntity = ProductEntity(
     status = status,
     active = active,
     createdAt = createdAt,
-    updatedAt = updatedAt
+    updatedAt = updatedAt,
+    isSynced = true, // Dato que viene de la red, siempre está sincronizado
+    requiresSync = false,
+    deletedLocally = false
 )

@@ -7,11 +7,13 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.remarket.ui.common.ImagePickerItem
 import com.example.remarket.util.Resource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Alignment
 
 /**
  * Tercera pantalla: fotos de producto, caja y factura, y botón de envío.
@@ -30,16 +32,21 @@ fun Step3Screen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()), // Añadido para evitar desbordamiento
+        horizontalAlignment = Alignment.CenterHorizontally // Centra el contenido
     ) {
         Text(
             text = "Fotos del producto",
-            style = MaterialTheme.typography.titleLarge
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.align(Alignment.Start)
         )
 
         // Galería de imágenes del producto
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
             itemsIndexed(images) { _, uri ->
                 ImagePickerItem(
                     imageUri = uri,
@@ -56,9 +63,12 @@ fun Step3Screen(
             }
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
         Text(
-            text = "Foto de la caja",
-            style = MaterialTheme.typography.titleMedium
+            text = "Foto de la caja (opcional)",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.align(Alignment.Start)
         )
         ImagePickerItem(
             imageUri = boxImage.takeIf { it.isNotBlank() },
@@ -66,9 +76,12 @@ fun Step3Screen(
             onPick = { viewModel.setBoxImage(it) }
         )
 
+        Spacer(modifier = Modifier.height(16.dp))
+
         Text(
-            text = "Foto de la factura",
-            style = MaterialTheme.typography.titleMedium
+            text = "Foto de la factura (opcional)",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.align(Alignment.Start)
         )
         ImagePickerItem(
             imageUri = invoiceImage.takeIf { it.isNotBlank() },
@@ -78,33 +91,39 @@ fun Step3Screen(
 
         Spacer(modifier = Modifier.weight(1f))
 
+        // Estado de envío
+        if (state is Resource.Error) {
+            Text(
+                text = (state as Resource.Error).message,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        if (state is Resource.Loading) {
+            CircularProgressIndicator(modifier = Modifier.padding(bottom = 8.dp))
+        }
+
         // Botones Atrás y Enviar
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            TextButton(onClick = onBack) {
+            Button(
+                onClick = onBack,
+                modifier = Modifier.weight(1f)
+            ) {
                 Text("Atrás")
             }
-            val context = LocalContext.current
-
+            Spacer(modifier = Modifier.width(16.dp))
             Button(
-                onClick = { viewModel.submit(context, onSuccess = onSubmit) },
-                enabled = state !is Resource.Loading
+                // --- LLAMADA CORREGIDA ---
+                onClick = { viewModel.submit(onSuccess = onSubmit) },
+                enabled = state !is Resource.Loading,
+                modifier = Modifier.weight(1f)
             ) {
-                Text("Enviar")
+                Text("Enviar a Revisión")
             }
-        }
-
-        // Estado de envío
-        when (state) {
-            is Resource.Loading -> LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            is Resource.Error -> Text(
-                text = (state as Resource.Error).message,
-                color = MaterialTheme.colorScheme.error
-            )
-            is Resource.Success -> {/* opcional: mensaje de éxito */}
-            else -> {}
         }
     }
 }

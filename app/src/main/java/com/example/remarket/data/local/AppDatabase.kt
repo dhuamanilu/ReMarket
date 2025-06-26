@@ -7,7 +7,7 @@ import androidx.room.TypeConverters
 import com.example.remarket.data.model.ProductEntity
 import com.example.remarket.data.util.Converters
 
-@Database(entities = [ProductEntity::class], version = 1)
+@Database(entities = [ProductEntity::class], version = 2)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun productDao(): ProductDao

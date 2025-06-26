@@ -1,3 +1,4 @@
+// data/repository/IProductRepository.kt
 package com.example.remarket.data.repository
 
 import com.example.remarket.data.model.Product
@@ -11,8 +12,11 @@ interface IProductRepository {
     fun getAllProducts(): Flow<Resource<List<Product>>>
     // Nueva función para forzar la sincronización con la red
     suspend fun syncProducts(): Boolean
-    suspend fun createProduct(request: ProductRequest): Resource<Product>
+    suspend fun createProduct(request: ProductRequest, imageUris: List<String>, boxImageUri: String?, invoiceUri: String?): Resource<Product>
     suspend fun getProductById(productId: String): Flow<Resource<Product>>
     suspend fun toggleFavorite(productId: String): Flow<Boolean>
     suspend fun reportProduct(productId: String, reason: String): Flow<Boolean>
+    suspend fun syncOfflineCreations(): Boolean
+    fun triggerOfflineSync()
+
 }

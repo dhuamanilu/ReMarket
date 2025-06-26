@@ -1,3 +1,4 @@
+// di/AppModule.kt
 package com.example.remarket.di
 
 import android.content.Context
@@ -23,6 +24,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 import com.example.remarket.data.network.TokenManager
+import com.example.remarket.data.repository.CloudinaryService
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -89,7 +91,9 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "remarket_db"
-        ).build()
+        )
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides
@@ -101,9 +105,19 @@ object AppModule {
     @Provides @Singleton
     fun provideProductRepository(
         apiService: ApiService,
-        productDao: ProductDao // <-- Añadir el DAO como dependencia
-    ): IProductRepository = ProductRepository(apiService, productDao) // <-- Pasarlo al constructor
-
+        productDao: ProductDao,
+        cloudinaryService: CloudinaryService,
+        connectivityRepository: IConnectivityRepository,
+        firebaseAuth: FirebaseAuth, // <-- AÑADIR ESTE PARÁMETRO
+        @ApplicationContext context: Context
+    ): IProductRepository = ProductRepository(
+        apiService,
+        productDao,
+        cloudinaryService,
+        connectivityRepository,
+        firebaseAuth, // <-- PASARLO AL CONSTRUCTOR
+        context
+    ) // <-- Pasar todo al constructor
 
     @Provides
     @Singleton
@@ -117,4 +131,11 @@ object AppModule {
     @Provides
     @Singleton
     fun provideFirebaseAuth(): FirebaseAuth = Firebase.auth
+
+    @Provides
+    @Singleton
+    fun provideCloudinaryService(@ApplicationContext context: Context): CloudinaryService {
+        return CloudinaryService(context)
+    }
+
 }

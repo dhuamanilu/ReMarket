@@ -15,5 +15,7 @@ data class Product(
     val status: String,
     val active: Boolean,
     val createdAt: String,
-    val updatedAt: String
+    val updatedAt: String,
+    val isSynced: Boolean = true
+
 )

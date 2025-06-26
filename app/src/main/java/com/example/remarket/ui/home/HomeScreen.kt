@@ -1,3 +1,4 @@
+// ui/home/HomeScreen.kt
 package com.example.remarket.ui.home
 
 import androidx.compose.foundation.layout.*
@@ -16,6 +17,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import androidx.compose.material.icons.Icons // <-- AÑADIR
+import androidx.compose.material.icons.filled.CloudOff // <-- AÑADIR
+import androidx.compose.material3.Icon
 
 
 /**
@@ -81,13 +85,28 @@ fun HomeScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(uiState.filteredProducts) { product ->
+                            // --- BLOQUE MODIFICADO PARA MOSTRAR ESTADO ---
                             Button(
                                 onClick = { onNavigateToProductDetail(product.id) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(56.dp)
                             ) {
-                                Text(text = "${product.brand} ${product.model}")
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text(text = "${product.brand} ${product.model}")
+                                    // Si el producto no está sincronizado, muestra un ícono
+                                    if (!product.isSynced) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.CloudOff,
+                                            contentDescription = "Pendiente de sincronización",
+                                            tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

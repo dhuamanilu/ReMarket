@@ -1,4 +1,5 @@
-// Añade estos imports:
+package com.example.remarket.ui.product.detail
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.AlertDialog
@@ -10,8 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-
-// Y pega este bloque tras tus otros @Composable:
 
 @Composable
 fun ReportDialog(

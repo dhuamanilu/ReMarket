@@ -1,7 +1,6 @@
 // ui/product/detail/ProductDetailScreen.kt
 package com.example.remarket.ui.product.detail
 
-import ReportDialog
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background

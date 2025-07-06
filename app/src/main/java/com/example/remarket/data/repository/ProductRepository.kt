@@ -192,6 +192,81 @@ class ProductRepository @Inject constructor(
             Resource.Success(newProductEntity.toDomain())
         }
     }
+
+    // --- FUNCIÓN 'updateProduct' CORREGIDA Y ROBUSTA ---
+    override suspend fun updateProduct(
+        productId: String,
+        request: ProductRequest,
+        imageUris: List<String>,
+        boxImageUri: String?,
+        invoiceUri: String?
+    ): Resource<Product> = withContext(Dispatchers.IO) {
+
+        // La edición sí requerirá conexión para evitar conflictos de sincronización.
+        if (!connectivityRepository.isNetworkAvailable()) {
+            return@withContext Resource.Error("Se necesita conexión a internet para actualizar el producto.")
+        }
+
+        try {
+            // Sube solo las imágenes que NO son de Cloudinary (las nuevas que el usuario seleccionó)
+            val uploadedImageUrls = imageUris.map { uri ->
+                if (uri.startsWith("http")) {
+                    uri // Es una URL de Cloudinary ya existente, no la vuelvas a subir.
+                } else {
+                    cloudinaryService.uploadImage(context, uri) // Es una URI local nueva, súbela.
+                }
+            }
+
+            // Lo mismo para la caja y la factura
+            val finalBoxUrl = boxImageUri?.let { uri ->
+                if (uri.startsWith("http")) uri else cloudinaryService.uploadImage(context, uri)
+            }
+            val finalInvoiceUrl = invoiceUri?.let { uri ->
+                if (uri.startsWith("http")) uri else cloudinaryService.uploadImage(context, uri)
+            }
+
+            // Crea la petición final con las URLs actualizadas
+            val finalRequest = request.copy(
+                imageUrls = uploadedImageUrls,
+                boxImageUrl = finalBoxUrl,
+                invoiceUrl = finalInvoiceUrl
+            )
+
+            // Llama a la API para actualizar el producto en el backend [cite: 58]
+            val updatedProductDto = api.updateProduct(productId, finalRequest)
+
+            // Actualiza la base de datos local con la nueva información del servidor
+            dao.insert(updatedProductDto.toEntity()) // OnConflictStrategy.REPLACE lo actualizará
+
+            Resource.Success(updatedProductDto.toDomain())
+
+        } catch (e: Exception) {
+            Log.e("ProductRepository", "Error al actualizar producto", e)
+            Resource.Error("Error al actualizar: ${e.message}")
+        }
+    }
+
+    // --- FUNCIÓN AÑADIDA PARA ELIMINAR ---
+    override suspend fun deleteProduct(productId: String): Resource<Unit> = withContext(Dispatchers.IO) {
+        if (!connectivityRepository.isNetworkAvailable()) {
+            return@withContext Resource.Error("Se necesita conexión para eliminar el producto.")
+        }
+        try {
+            val response = api.deleteProduct(productId)
+            if (response.isSuccessful) {
+                // Borra también de la base de datos local
+                dao.deleteById(productId)
+                Resource.Success(Unit)
+            } else {
+                Resource.Error("Error al eliminar el producto (código: ${response.code()})")
+            }
+        } catch (e: Exception) {
+            Log.e("ProductRepository", "Error al eliminar producto", e)
+            Resource.Error("Error de red al eliminar el producto: ${e.message}")
+        }
+    }
+
+
     override suspend fun getProductById(productId: String): Flow<Resource<Product>> = flow {
         try {
             // Llamada al endpoint específico

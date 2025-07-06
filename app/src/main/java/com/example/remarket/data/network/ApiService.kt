@@ -5,6 +5,8 @@ import android.service.autofill.SaveRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.POST
+import retrofit2.http.DELETE // <-- AÑADIDO
+import retrofit2.http.PUT // <-- AÑADIDO
 import com.example.remarket.data.model.ProductDto
 import com.example.remarket.data.model.UserDto
 import com.example.remarket.data.model.RegisterResponse
@@ -31,6 +33,15 @@ interface ApiService {
 
     @POST("reports")
     suspend fun createReport(@Body request: ReportRequest): Response<Unit>
+
+    @PUT("products/{productId}") // <-- AÑADIDO
+    suspend fun updateProduct(
+        @Path("productId") productId: String,
+        @Body request: ProductRequest // Reutilizamos el ProductRequest
+    ): ProductDto
+
+    @DELETE("products/{productId}") // <-- AÑADIDO
+    suspend fun deleteProduct(@Path("productId") productId: String): Response<Unit>
 
     @GET("users/{userId}")
     suspend fun getUserById(

@@ -18,13 +18,19 @@ import android.util.Log
 import com.example.remarket.data.model.Product
 import com.example.remarket.data.repository.IProductRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.lifecycle.SavedStateHandle // <-- AÑADIDO
+
 
 @HiltViewModel
 class CreateProductViewModel @Inject constructor(
     private val createProductUseCase: CreateProductUseCase,
     // El contexto ya no es necesario en la función submit porque se inyecta aquí
-    @ApplicationContext private val context: Context
+    private val productRepository: IProductRepository, // <-- AÑADIDO para editar
+    @ApplicationContext private val context: Context,
+    private val savedStateHandle: SavedStateHandle // <-- AÑADIDO
 ) : ViewModel() {
+    private var isEditMode = false
+    private var editingProductId: String? = null
 
     private val _brand = MutableStateFlow("")
     val brand: StateFlow<String> = _brand.asStateFlow()
@@ -73,7 +79,45 @@ class CreateProductViewModel @Inject constructor(
     fun addImage(uri: String) { _images.value = _images.value + uri }
     fun setBoxImage(uri: String) { _boxImageUrl.value = uri }
     fun setInvoiceImage(uri: String) { _invoiceUrl.value = uri }
+    fun removeImage(uri: String) {
+        _images.value = _images.value.toMutableList().also { it.remove(uri) }
+    }
 
+    fun clearBoxImage() {
+        _boxImageUrl.value = ""
+    }
+
+    fun clearInvoiceImage() {
+        _invoiceUrl.value = ""
+    }
+    // --- NUEVA FUNCIÓN PARA CARGAR DATOS EN MODO EDICIÓN ---
+    fun loadProductForEdit(productId: String) {
+        if (isEditMode) return // Evita recargar si ya está en modo edición
+        isEditMode = true
+        editingProductId = productId
+
+        viewModelScope.launch {
+            _state.value = Resource.Loading
+            productRepository.getProductById(productId).collect { resource ->
+                if (resource is Resource.Success && resource.data != null) {
+                    val product = resource.data
+                    _brand.value = product.brand
+                    _model.value = product.model
+                    _storage.value = product.storage
+                    _price.value = product.price
+                    _priceText.value = product.price.toString()
+                    _imei.value = product.imei
+                    _description.value = product.description
+                    _images.value = product.images
+                    _boxImageUrl.value = product.box
+                    _invoiceUrl.value = product.invoiceUri
+                    _state.value = Resource.Idle // Resetea el estado
+                } else if (resource is Resource.Error) {
+                    _state.value = Resource.Error("No se pudo cargar el producto para editar: ${resource.message}")
+                }
+            }
+        }
+    }
     private fun validate(): String? {
         return when {
             brand.value.isBlank() -> "Por favor ingresa la marca."
@@ -103,19 +147,30 @@ class CreateProductViewModel @Inject constructor(
                 price = _price.value,
                 imei = _imei.value,
                 description = _description.value,
-                imageUrls = emptyList(), // Las URIs se pasan por separado
+                imageUrls = emptyList(),
                 boxImageUrl = null,
                 invoiceUrl = null
             )
 
-            val result = createProductUseCase(
-                request = request,
-                imageUris = _images.value,
-                boxImageUri = _boxImageUrl.value.takeIf { it.isNotBlank() },
-                invoiceUri = _invoiceUrl.value.takeIf { it.isNotBlank() }
-            )
+            // --- LÓGICA MODIFICADA PARA ELEGIR ENTRE CREAR Y ACTUALIZAR ---
+            val result = if (isEditMode && editingProductId != null) {
+                productRepository.updateProduct(
+                    productId = editingProductId!!,
+                    request = request,
+                    imageUris = _images.value,
+                    boxImageUri = _boxImageUrl.value.takeIf { it.isNotBlank() },
+                    invoiceUri = _invoiceUrl.value.takeIf { it.isNotBlank() }
+                )
+            } else {
+                createProductUseCase(
+                    request = request,
+                    imageUris = _images.value,
+                    boxImageUri = _boxImageUrl.value.takeIf { it.isNotBlank() },
+                    invoiceUri = _invoiceUrl.value.takeIf { it.isNotBlank() }
+                )
+            }
 
-            _state.value = result // El estado ahora refleja el resultado directamente
+            _state.value = result
 
             if (result is Resource.Success) {
                 onSuccess()

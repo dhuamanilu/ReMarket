@@ -31,15 +31,17 @@ import com.example.remarket.ui.product.create.Step3Screen
 import com.example.remarket.ui.product.detail.ProductDetailViewModel
 import com.google.firebase.auth.FirebaseAuth
 
+
 // Definición de rutas centralizada y clara
 object Routes {
     const val LOGIN = "login"
-    const val REGISTER_FLOW = "register_flow" // Ruta para el gráfico anidado
+    const val REGISTER_FLOW = "register_flow"
     const val REGISTER_1 = "register_1"
     const val REGISTER_2 = "register_2"
     const val HOME = "home"
     const val PRODUCT_DETAIL = "product_detail/{productId}"
-    const val PRODUCT_CREATE = "product_create" //
+    const val PRODUCT_CREATE = "product_create"
+    const val PRODUCT_EDIT = "product_edit/{productId}" // <-- AÑADIDO
     const val ADMIN_HOME = "admin_home"
     const val FORGOT_PASSWORD = "forgot_password"
     const val PURCHASE = "purchase/{productId}"
@@ -60,7 +62,7 @@ fun AppNavGraph(
 
     NavHost(
         navController = navController,
-        startDestination = startDestination // <-- La ruta de inicio ahora es dinámica
+        startDestination = startDestination // La ruta de inicio ahora es dinámica
     ) {
         // Pantalla de Login
         composable(Routes.LOGIN) {
@@ -117,36 +119,36 @@ fun AppNavGraph(
             startDestination = Routes.REGISTER_1,
             route = Routes.REGISTER_FLOW
         ) {
-        composable(Routes.REGISTER_1) { backStackEntry ->
-            val parentEntry = remember(backStackEntry) {
-                navController.getBackStackEntry(Routes.REGISTER_FLOW)
+            composable(Routes.REGISTER_1) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Routes.REGISTER_FLOW)
+                }
+                val registerViewModel: RegisterViewModel = hiltViewModel(parentEntry)
+
+                Register1Screen(
+                    onBack = { navController.popBackStack() },
+                    onNext = { navController.navigate(Routes.REGISTER_2) },
+                    viewModel = registerViewModel
+                )
             }
-            val registerViewModel: RegisterViewModel = hiltViewModel(parentEntry)
 
-            Register1Screen(
-                onBack = { navController.popBackStack() },
-                onNext = { navController.navigate(Routes.REGISTER_2) },
-                viewModel = registerViewModel
-            )
-        }
+            composable(Routes.REGISTER_2) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Routes.REGISTER_FLOW)
+                }
+                val registerViewModel: RegisterViewModel = hiltViewModel(parentEntry)
 
-        composable(Routes.REGISTER_2) { backStackEntry ->
-            val parentEntry = remember(backStackEntry) {
-                navController.getBackStackEntry(Routes.REGISTER_FLOW)
+                Register2Screen(
+                    onBack = { navController.popBackStack() },
+                    onRegister = {
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(Routes.REGISTER_FLOW) { inclusive = true }
+                        }
+                    },
+                    viewModel = registerViewModel
+                )
             }
-            val registerViewModel: RegisterViewModel = hiltViewModel(parentEntry)
-
-            Register2Screen(
-                onBack = { navController.popBackStack() },
-                onRegister = {
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.REGISTER_FLOW) { inclusive = true }
-                    }
-                },
-                viewModel = registerViewModel
-            )
         }
-    }
 
         // Pantalla principal (Home)
         composable(Routes.HOME) {
@@ -161,7 +163,7 @@ fun AppNavGraph(
             HomeScreen(
                 uiState = uiState,
                 onSearchQueryChanged = homeViewModel::onSearchQueryChanged,
-                onRefresh = homeViewModel::onRefresh, // <-- AÑADIR ESTA LÍNEA
+                onRefresh = homeViewModel::onRefresh,
                 onNavigateToProductDetail = { productId ->
                     navController.navigate(Routes.PRODUCT_DETAIL.replace("{productId}", productId))
                 },
@@ -182,85 +184,105 @@ fun AppNavGraph(
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             val viewModel: ProductDetailViewModel = hiltViewModel()
 
-            ProductDetailScreen( //
+            ProductDetailScreen(
                 productId = productId,
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onBuyProduct = { prodId ->
-                    navController.navigate(Routes.PURCHASE.replace("{productId}", prodId)) //
+                    navController.navigate(Routes.PURCHASE.replace("{productId}", prodId))
+                },
+                onNavigateToEdit = { prodId ->
+                    navController.navigate(Routes.PRODUCT_EDIT.replace("{productId}", prodId))
                 }
             )
         }
 
+        // Flujo de creación de producto
         composable(Routes.PRODUCT_CREATE) {
-            // 1) Una sola instancia
-            val createVm = hiltViewModel<CreateProductViewModel>()
-            // NavController independiente para el flujo de creación
-            val createNavController = rememberNavController()
+            ProductCreateFlow(navController = navController)
+        }
 
-            NavHost(
-                navController = createNavController,
-                startDestination = "step1",
-                modifier = Modifier.fillMaxSize()
-            ) {
-                composable("step1") {
-                    Step1Screen(
-                        viewModel = createVm,      // << misma instancia
-                        onNext = { createNavController.navigate("step2") }
-                    )
-                }
-                composable("step2") {
-                    Step2Screen(
-                        viewModel = createVm,      // << misma instancia
-                        onNext = { createNavController.navigate("step3") },
-                        onBack = { createNavController.popBackStack() }
-                    )
-                }
-                composable("step3") {
-                    Step3Screen(
-                        viewModel = createVm,      // << misma instancia
-                        onBack = { createNavController.popBackStack() },
-                        onSubmit = { createNavController.navigate("review") }
-                    )
-                }
-                composable("review") {
-                    ReviewScreen(
-                        viewModel = createVm,      // << misma instancia
-                        onBack = {
-                            // Tras revisión, volvemos al home y limpiamos la pila de creación
-                            navController.navigate(Routes.HOME) {
-                                popUpTo(Routes.PRODUCT_CREATE) { inclusive = true }
-                            }
-                        }
-                    )
-                }
-            }
+        // Flujo de edición de producto
+        composable(Routes.PRODUCT_EDIT) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId")
+            ProductCreateFlow(navController = navController, productIdForEdit = productId)
+        }
 
-        // --- Pantallas Placeholder (Implementar UI más adelante) ---
-
-        /*composable(Routes.ADMIN_HOME) { //
+        // --- Pantallas Placeholder ---
+        composable(Routes.ADMIN_HOME) {
             AdminHomeScreen(onLogout = {
                 navController.navigate(Routes.LOGIN) {
-                    popUpTo(Routes.ADMIN_HOME) { inclusive = true } //
+                    popUpTo(Routes.ADMIN_HOME) { inclusive = true }
                 }
             })
-        }*/
+        }
 
-        /*composable(Routes.FORGOT_PASSWORD) {
-            ForgotPasswordScreen(onNavigateBack = { navController.popBackStack() }) //
-        }*/
+        composable(Routes.FORGOT_PASSWORD) {
+            ForgotPasswordScreen(onNavigateBack = { navController.popBackStack() })
+        }
 
-        /*composable(Routes.PURCHASE) { backStackEntry ->
+        composable(Routes.PURCHASE) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             PurchaseScreen(
-                productId = productId, //
+                productId = productId,
                 onNavigateBack = { navController.popBackStack() },
                 onPurchaseComplete = {
-                    navController.navigate(Routes.HOME) { //
+                    navController.navigate(Routes.HOME) {
                         popUpTo(Routes.PURCHASE.replace("{productId}", productId)) { inclusive = true }
                     }
                 }
-            )*/
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProductCreateFlow(navController: NavHostController, productIdForEdit: String? = null) {
+    val createVm: CreateProductViewModel = hiltViewModel()
+    val createNavController = rememberNavController()
+
+    // Si es para editar, carga los datos del producto
+    LaunchedEffect(productIdForEdit) {
+        if (productIdForEdit != null) {
+            createVm.loadProductForEdit(productIdForEdit)
+        }
+    }
+
+    NavHost(
+        navController = createNavController,
+        startDestination = "step1",
+        modifier = Modifier.fillMaxSize()
+    ) {
+        composable("step1") {
+            Step1Screen(
+                viewModel = createVm,
+                onNext = { createNavController.navigate("step2") }
+            )
+        }
+        composable("step2") {
+            Step2Screen(
+                viewModel = createVm,
+                onNext = { createNavController.navigate("step3") },
+                onBack = { createNavController.popBackStack() }
+            )
+        }
+        composable("step3") {
+            Step3Screen(
+                viewModel = createVm,
+                onBack = { createNavController.popBackStack() },
+                onSubmit = { createNavController.navigate("review") }
+            )
+        }
+        composable("review") {
+            ReviewScreen(
+                viewModel = createVm,
+                onBack = {
+                    // Vuelve al home y limpia la pila de creación/edición
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                    }
+                }
+            )
         }
     }
 }
@@ -269,13 +291,11 @@ fun AppNavGraph(
 
 @Composable
 fun AdminHomeScreen(onLogout: () -> Unit) {
-    // TODO: Implementar UI de Admin
     androidx.compose.material3.Text("Admin Home Screen - TODO")
 }
 
 @Composable
 fun ForgotPasswordScreen(onNavigateBack: () -> Unit) {
-    // TODO: Implementar UI de "Olvidé mi contraseña"
     androidx.compose.material3.Text("Forgot Password Screen - TODO")
 }
 
@@ -285,6 +305,5 @@ fun PurchaseScreen(
     onNavigateBack: () -> Unit,
     onPurchaseComplete: () -> Unit
 ) {
-    // TODO: Implementar UI de compra
     androidx.compose.material3.Text("Purchase Screen for product $productId - TODO")
 }

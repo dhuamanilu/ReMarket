@@ -4,6 +4,7 @@ package com.example.remarket.ui.product.detail
 import ReportDialog
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -36,13 +37,42 @@ fun ProductDetailScreen(
     productId: String,
     onNavigateBack: () -> Unit,
     onBuyProduct: (String) -> Unit,
-    viewModel: ProductDetailViewModel = viewModel()
+    viewModel: ProductDetailViewModel = viewModel(),
+    onNavigateToEdit: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isLoaded by viewModel.isProductLoaded.collectAsState()
+    val context = LocalContext.current
 
     LaunchedEffect(productId) {
         viewModel.loadProduct(productId)
+    }
+
+    LaunchedEffect(uiState.deleteMessage) {
+        uiState.deleteMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            if (it == "Producto eliminado.") {
+                onNavigateBack()
+            }
+        }
+    }
+
+    if (uiState.showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onDismissDeleteDialog() },
+            title = { Text("Confirmar Eliminación") },
+            text = { Text("¿Estás seguro de que quieres eliminar este producto? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.onConfirmDelete() }) {
+                    Text("Eliminar", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onDismissDeleteDialog() }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 
     Column(
@@ -80,7 +110,10 @@ fun ProductDetailScreen(
                     sellerName = uiState.sellerName,
                     isFavorite = uiState.isFavorite,
                     onToggleFavorite = { viewModel.toggleFavorite() },
-                    onBuyProduct = onBuyProduct
+                    onBuyProduct = onBuyProduct,
+                    isOwner = uiState.isOwner,
+                    onEditClick = { onNavigateToEdit(uiState.product!!.id) },
+                    onDeleteClick = { viewModel.onDeleteClicked() }
                 )
             }
         }
@@ -132,10 +165,11 @@ private fun ProductDetailContent(
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
     onBuyProduct: (String) -> Unit,
-    sellerName: String? = null
+    sellerName: String? = null,
+    isOwner: Boolean,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
-    val context = LocalContext.current
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -184,13 +218,40 @@ private fun ProductDetailContent(
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
             DataRow(label = "Almacenamiento", value = product.storage)
             DataRow(label = "Descripción", value = product.description)
-            DataRow(label = "Incluye caja", value = if (product.box == "yes") "Sí" else "No")
+            DataRow(label = "Incluye caja", value = if (product.box.isNotBlank()) "Sí" else "No")
             DataRow(label = "Vendedor", value = sellerName ?: "Cargando...")
-            DataRow(label = "Creado", value = product.createdAt)
+            DataRow(label = "Publicado", value = product.createdAt)
         }
 
         Spacer(Modifier.height(16.dp))
 
+        // Botones de Editar y Eliminar para el vendedor
+        if (isOwner) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onEditClick,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)) // Verde para editar
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = "Editar")
+                    Spacer(Modifier.width(8.dp))
+                    Text("Editar")
+                }
+                OutlinedButton(
+                    onClick = onDeleteClick,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color.Red)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Eliminar", color = Color.Red)
+                }
+            }
+        }
 
         Spacer(Modifier.height(24.dp))
 
@@ -202,7 +263,8 @@ private fun ProductDetailContent(
                 .padding(horizontal = 16.dp)
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF))
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF)),
+            enabled = !isOwner // El dueño no puede comprar su propio producto
         ) {
             Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = Color.White)
             Spacer(Modifier.width(8.dp))
@@ -214,20 +276,10 @@ private fun ProductDetailContent(
 }
 
 @Composable
-private fun Chip(text: String) {
-    Box(
-        modifier = Modifier
-            .background(Color(0xFFE0E0E0), RoundedCornerShape(8.dp))
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    ) {
-        Text(text = text, fontSize = 12.sp)
-    }
-}
-
-@Composable
 private fun DataRow(label: String, value: String) {
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
-        Text(label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-        Text(value, fontSize = 14.sp, color = Color(0xFF555555))
+        Text(label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.Gray)
+        Text(value, fontSize = 16.sp, color = Color.Black)
+        Divider(modifier = Modifier.padding(top = 4.dp))
     }
 }

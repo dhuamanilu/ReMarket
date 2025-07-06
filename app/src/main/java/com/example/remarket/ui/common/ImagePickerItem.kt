@@ -21,24 +21,26 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage // <-- ¡IMPORTANTE! Usaremos Coil
+import java.io.File
+import java.io.FileOutputStream
 
 @Composable
 fun ImagePickerItem(
-    imageUri: String?,
+    imageUri: String?, // Puede ser una URL "https://" o una URI "content://"
     size: Dp,
     onPick: (String) -> Unit
 ) {
     val ctx = LocalContext.current
 
-    // Launcher para cámara (preview bitmap)
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bmp: Bitmap? ->
         bmp?.let { bitmap ->
-            // Convertir bitmap a Uri temporal
             val uri = saveTempBitmap(ctx, bitmap)
             onPick(uri.toString())
         }
@@ -55,13 +57,16 @@ fun ImagePickerItem(
         contentAlignment = Alignment.Center
     ) {
         if (!imageUri.isNullOrBlank()) {
-            val bmp = decodeBitmap(imageUri, ctx)
-            Image(
-                bitmap = bmp.asImageBitmap(),
-                contentDescription = null,
-                modifier = Modifier.size(size)
+            // --- BLOQUE MODIFICADO ---
+            // AsyncImage de Coil maneja URLs y URIs locales automáticamente.
+            AsyncImage(
+                model = imageUri,
+                contentDescription = "Imagen seleccionada",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop // Asegura que la imagen llene el espacio
             )
         } else {
+            // Esta parte (para agregar una nueva imagen) no cambia.
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
@@ -97,19 +102,17 @@ fun ImagePickerItem(
     }
 }
 
+
 // Helpers
 fun decodeBitmap(uriString: String, context: Context) =
     android.graphics.BitmapFactory.decodeStream(
         context.contentResolver.openInputStream(Uri.parse(uriString))
     )
 
-fun saveTempBitmap(context: Context, bitmap: Bitmap): Uri {
-    // Guarda en cache dir y retorna Uri
-    val file = java.io.File(context.cacheDir, "temp_image.jpg")
-    java.io.FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it) }
-    return androidx.core.content.FileProvider.getUriForFile(
-        context,
-        context.packageName + ".provider",
-        file
-    )
+private fun saveTempBitmap(context: Context, bitmap: Bitmap): Uri {
+    val tempFile = File(context.cacheDir, "temp_image_${System.currentTimeMillis()}.jpg")
+    FileOutputStream(tempFile).use {
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it)
+    }
+    return Uri.fromFile(tempFile)
 }

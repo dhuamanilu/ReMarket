@@ -55,6 +55,8 @@ object Routes {
     const val MY_PRODUCTS   = "my_products"
     const val PROFILE       = "profile"
     const val ADMIN_REPORTS = "admin_reports"
+    const val REQUESTS       = "requests"      // ← NUEVA
+    const val REPORTS        = "reports"       // ← NUEVA
 }
 
 @Composable
@@ -164,18 +166,27 @@ fun AppNavGraph(
             val vm: HomeViewModel = hiltViewModel()
             val ui by vm.uiState.collectAsState()
 
-            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = false) }) { padd ->
+            Scaffold(
+                bottomBar = { BottomNavigationBar(navController, isAdmin = false) }
+            ) { innerPadding ->
                 HomeScreen(
                     uiState = ui,
+                    paddingValues = innerPadding,          // ← NUEVO
                     onSearchQueryChanged = vm::onSearchQueryChanged,
                     onRefresh = vm::onRefresh,
                     onNavigateToProductDetail = { id ->
-                        navController.navigate(Routes.PRODUCT_DETAIL.replace("{productId}", id))
+                        navController.navigate(
+                            Routes.PRODUCT_DETAIL.replace("{productId}", id)
+                        )
                     },
-                    onNavigateToCreateProduct = { navController.navigate(Routes.PRODUCT_CREATE) },
+                    onNavigateToCreateProduct = {
+                        navController.navigate(Routes.PRODUCT_CREATE)
+                    },
                     onLogout = {
                         vm.onLogout()
-                        navController.navigate(Routes.LOGIN) { popUpTo(Routes.HOME) { inclusive = true } }
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(Routes.HOME) { inclusive = true }
+                        }
                     }
                 )
             }
@@ -186,7 +197,11 @@ fun AppNavGraph(
             val vm: MyProductsViewModel = hiltViewModel()
             val ui by vm.uiState.collectAsState()
             Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = false) }) { padd ->
-                MyProductsScreen(uiState = ui, paddingValues = padd)
+                MyProductsScreen(uiState = ui, paddingValues = padd, onNavigateToProductDetail = { id ->
+                    navController.navigate(
+                        Routes.PRODUCT_DETAIL.replace("{productId}", id)
+                    )
+                })
             }
         }
 
@@ -235,18 +250,20 @@ fun AppNavGraph(
 
         // Pantalla de administrador
         composable(Routes.ADMIN_HOME) {
-            AdminPendingProductsScreen(
-                onProductClick = { id ->
-                            navController.navigate(
-                                   Routes.ADMIN_PRODUCT_DETAIL.replace("{productId}", id)
-                                        )
-                       },
-                onLogout = {
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.ADMIN_HOME) { inclusive = true }
+            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = true) }) { padd ->
+                AdminPendingProductsScreen(
+                    onProductClick = { id ->
+                        navController.navigate(
+                            Routes.ADMIN_PRODUCT_DETAIL.replace("{productId}", id)
+                        )
+                    },
+                    onLogout = {
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(Routes.ADMIN_HOME) { inclusive = true }
+                        }
                     }
-                }
-            )
+                )
+            }
         }
 
         composable(Routes.ADMIN_PRODUCT_DETAIL) { backStackEntry ->

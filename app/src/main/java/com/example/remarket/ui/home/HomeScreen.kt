@@ -20,6 +20,8 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import androidx.compose.material.icons.Icons // <-- AÑADIR
 import androidx.compose.material.icons.filled.CloudOff // <-- AÑADIR
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 
 /**
@@ -28,6 +30,7 @@ import androidx.compose.material3.Icon
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
+    paddingValues: PaddingValues,
     onSearchQueryChanged: (String) -> Unit,
     onRefresh: () -> Unit, // Callback para iniciar la actualización
     onNavigateToProductDetail: (String) -> Unit,
@@ -45,11 +48,12 @@ fun HomeScreen(
         SwipeRefresh(
             state = swipeRefreshState,
             onRefresh = onRefresh, // Se llama cuando el usuario desliza
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().padding(paddingValues)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {

@@ -20,5 +20,10 @@ interface IProductRepository {
     suspend fun reportProduct(productId: String, reason: String): Flow<Boolean>
     suspend fun syncOfflineCreations(): Boolean
     fun triggerOfflineSync()
+    fun getPendingProducts(): Flow<Resource<List<Product>>>
+    suspend fun updateProductStatus(productId: String, newStatus: String): Resource<Unit>
+    fun getPendingProductsFromFirebase(): Flow<Resource<List<Product>>>
+    suspend fun getProductByIdFromFirebase(id: String): Resource<Product>
+
 
 }

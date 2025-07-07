@@ -13,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.remarket"
-        minSdk = 34
+        minSdk = 33
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -56,6 +56,7 @@ android {
 dependencies {
     implementation(libs.cloudinary.android)
     implementation(libs.androidx.core.i18n)
+    implementation(libs.firebase.firestore.ktx)
     ksp(libs.hilt.compiler)
     implementation(libs.material.icons.extended)
     implementation(libs.moshi)

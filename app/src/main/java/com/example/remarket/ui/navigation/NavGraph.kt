@@ -13,6 +13,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.navigation
+import com.example.remarket.ui.admin.AdminPendingProductsScreen
+import com.example.remarket.ui.admin.AdminProductDetailScreen
 import com.example.remarket.ui.auth.login.LoginScreen
 import com.example.remarket.ui.auth.login.LoginViewModel
 import com.example.remarket.ui.auth.login.NavigationEvent
@@ -31,7 +33,6 @@ import com.example.remarket.ui.product.create.Step3Screen
 import com.example.remarket.ui.product.detail.ProductDetailViewModel
 import com.google.firebase.auth.FirebaseAuth
 
-
 // Definición de rutas centralizada y clara
 object Routes {
     const val LOGIN = "login"
@@ -41,16 +42,16 @@ object Routes {
     const val HOME = "home"
     const val PRODUCT_DETAIL = "product_detail/{productId}"
     const val PRODUCT_CREATE = "product_create"
-    const val PRODUCT_EDIT = "product_edit/{productId}" // <-- AÑADIDO
+    const val PRODUCT_EDIT = "product_edit/{productId}"
     const val ADMIN_HOME = "admin_home"
     const val FORGOT_PASSWORD = "forgot_password"
     const val PURCHASE = "purchase/{productId}"
+    const val ADMIN_PRODUCT_DETAIL = "admin_product_detail/{productId}"
 }
 
 @Composable
 fun AppNavGraph(
     navController: NavHostController = rememberNavController(),
-    // Inyecta FirebaseAuth para verificar el usuario actual
     firebaseAuth: FirebaseAuth
 ) {
     // Determina la ruta inicial basándose en si el usuario está logueado
@@ -62,7 +63,7 @@ fun AppNavGraph(
 
     NavHost(
         navController = navController,
-        startDestination = startDestination // La ruta de inicio ahora es dinámica
+        startDestination = startDestination
     ) {
         // Pantalla de Login
         composable(Routes.LOGIN) {
@@ -84,32 +85,33 @@ fun AppNavGraph(
                             }
                             loginViewModel.clearNavigationEvent()
                         }
-                        is NavigationEvent.NavigateToForgotPassword -> {
-                            navController.navigate(Routes.FORGOT_PASSWORD)
-                            loginViewModel.clearNavigationEvent()
-                        }
                         null -> { /* No hacer nada */ }
+                        is NavigationEvent.Error -> {
+                            // Manejar errores si es necesario
+                        }
+                        NavigationEvent.Idle -> {
+                            // Estado idle, no hacer nada
+                        }
+                        else -> {}
                     }
                 }
             }
 
+            // Pasa todos los callbacks pero como funciones vacías
+            // ya que la navegación real se maneja por eventos
             LoginScreen(
                 viewModel = loginViewModel,
                 onNavigateToRegister = {
                     navController.navigate(Routes.REGISTER_FLOW)
                 },
-                onNavigateToHome = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
-                    }
-                },
-                onNavigateToAdmin = {
-                    navController.navigate(Routes.ADMIN_HOME) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
-                    }
-                },
                 onNavigateToForgotPassword = {
                     navController.navigate(Routes.FORGOT_PASSWORD)
+                },
+                onNavigateToHome = {
+                    // Función vacía - la navegación se maneja por eventos
+                },
+                onNavigateToAdmin = {
+                    // Función vacía - la navegación se maneja por eventos
                 }
             )
         }
@@ -208,13 +210,28 @@ fun AppNavGraph(
             ProductCreateFlow(navController = navController, productIdForEdit = productId)
         }
 
-        // --- Pantallas Placeholder ---
+        // Pantalla de administrador
         composable(Routes.ADMIN_HOME) {
-            AdminHomeScreen(onLogout = {
-                navController.navigate(Routes.LOGIN) {
-                    popUpTo(Routes.ADMIN_HOME) { inclusive = true }
+            AdminPendingProductsScreen(
+                onProductClick = { id ->
+                            navController.navigate(
+                                   Routes.ADMIN_PRODUCT_DETAIL.replace("{productId}", id)
+                                        )
+                       },
+                onLogout = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.ADMIN_HOME) { inclusive = true }
+                    }
                 }
-            })
+            )
+        }
+
+        composable(Routes.ADMIN_PRODUCT_DETAIL) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            AdminProductDetailScreen(
+                productId = productId,
+                onBack    = { navController.popBackStack() }
+            )
         }
 
         composable(Routes.FORGOT_PASSWORD) {

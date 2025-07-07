@@ -1,5 +1,6 @@
 package com.example.remarket.data.model
 
+
 data class Product(
     val id: String,
     val sellerId: String,
@@ -14,8 +15,7 @@ data class Product(
     val invoiceUri: String,
     val status: String,
     val active: Boolean,
-    val createdAt: String,
-    val updatedAt: String,
+    val createdAt: String = "",  // Default empty string
+    val updatedAt: String = "",  // Default empty string
     val isSynced: Boolean = true
-
 )

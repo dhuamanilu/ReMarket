@@ -33,6 +33,8 @@ import java.util.concurrent.TimeUnit
 import com.example.remarket.data.worker.SyncWorker
 import androidx.work.*
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 import java.time.ZonedDateTime
 import java.util.UUID
 import java.io.File
@@ -45,7 +47,8 @@ class ProductRepository @Inject constructor(
     private val cloudinaryService: CloudinaryService,
     private val connectivityRepository: IConnectivityRepository,
     private val firebaseAuth: FirebaseAuth,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val firestore: FirebaseFirestore // <-- Añadir esta línea
 ) : IProductRepository {
 
     /**
@@ -268,6 +271,7 @@ class ProductRepository @Inject constructor(
 
 
     override suspend fun getProductById(productId: String): Flow<Resource<Product>> = flow {
+        Log.d("Repo", "   >>> LLAMANDO API CON ID = $productId")
         try {
             // Llamada al endpoint específico
             val dto= api.getProductById(productId)
@@ -392,5 +396,104 @@ class ProductRepository @Inject constructor(
         )
         Log.d("ProductRepository", "Se solicitó un trabajo de sincronización con política KEEP.")
     }
+
+    override fun getPendingProducts(): Flow<Resource<List<Product>>> = flow {
+        emit(Resource.Loading)
+        dao.getPendingProducts()
+            .map { list ->
+                Log.d("PendingProducts", "Encontrados ${list.size} productos pendientes")
+                list.map { it.toDomain() }
+            }
+            .collect { emit(Resource.Success(it)) }
+    }
+
+    override suspend fun updateProductStatus(productId: String, newStatus: String): Resource<Unit> = withContext(Dispatchers.IO) {
+        try {
+            // Actualiza el campo "status" en el documento de Firestore
+            firestore.collection("products")
+                .document(productId)
+                .update("status", newStatus)
+                .await()
+
+            // También actualiza localmente si quieres (opcional)
+            dao.updateStatus(productId, newStatus)
+
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error("Error al actualizar estado: ${e.message}")
+        }
+    }
+
+    override fun getPendingProductsFromFirebase(): Flow<Resource<List<Product>>> = flow {
+        emit(Resource.Loading)
+        try {
+            val snapshot = firestore.collection("products")
+                .whereEqualTo("status", "pending")
+                .get()
+                .await()
+
+            val products = snapshot.documents.mapNotNull { doc ->
+                val data = doc.data ?: return@mapNotNull null
+
+                Product(
+                    id = doc.id,
+                    sellerId = data["sellerId"] as? String ?: "",
+                    brand = data["brand"] as? String ?: "",
+                    model = data["model"] as? String ?: "",
+                    storage = data["storage"] as? String ?: "",
+                    price = (data["price"] as? Number)?.toDouble() ?: 0.0,
+                    imei = data["imei"] as? String ?: "",
+                    description = data["description"] as? String ?: "",
+                    images = data["images"] as? List<String> ?: emptyList(),
+                    box = data["box"] as? String ?: "",
+                    invoiceUri = data["invoiceUri"] as? String ?: "",
+                    status = data["status"] as? String ?: "",
+                    active = data["active"] as? Boolean ?: true,
+                    // Aquí ignoramos Timestamp y ponemos string vacío o una fecha fija si quieres
+                    createdAt = "",
+                    updatedAt = "",
+                    isSynced = data["isSynced"] as? Boolean ?: true
+                )
+            }
+
+            emit(Resource.Success(products))
+        } catch (e: Exception) {
+            emit(Resource.Error("Error al obtener productos pendientes: ${e.message}"))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    override suspend fun getProductByIdFromFirebase(productId: String): Resource<Product> = try {
+        val doc = firestore.collection("products").document(productId).get().await()
+        if (!doc.exists()) {
+            Resource.Error("Producto no encontrado en Firestore")
+        } else {
+            val data = doc.data!!
+            Resource.Success(
+                Product(
+                    id = doc.id,
+                    sellerId    = data["sellerId"]  as? String ?: "",
+                    brand       = data["brand"]     as? String ?: "",
+                    model       = data["model"]     as? String ?: "",
+                    storage     = data["storage"]   as? String ?: "",
+                    price       = (data["price"] as? Number)?.toDouble() ?: 0.0,
+                    imei        = data["imei"]      as? String ?: "",
+                    description = data["description"] as? String ?: "",
+                    images      = data["images"]    as? List<String> ?: emptyList(),
+                    box         = data["box"]       as? String ?: "",
+                    invoiceUri  = data["invoiceUri"] as? String ?: "",
+                    status      = data["status"]    as? String ?: "",
+                    active      = data["active"]    as? Boolean ?: true,
+                    createdAt   = "",
+                    updatedAt   = "",
+                    isSynced    = data["isSynced"]  as? Boolean ?: true
+                )
+            )
+        }
+    } catch (e: Exception) {
+        Resource.Error("Error Firestore: ${e.message}")
+    }
+
+
+
 
 }

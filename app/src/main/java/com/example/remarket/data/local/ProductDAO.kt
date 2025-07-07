@@ -56,4 +56,12 @@ interface ProductDao {
      */
     @Query("DELETE FROM products WHERE isSynced = 1") // <-- MÉTODO NUEVO/MODIFICADO
     suspend fun deleteSynced()
+
+    /** ➊ Lista en tiempo real todos los productos con estado PENDING. */
+    @Query("SELECT * FROM products WHERE status = 'pending'")
+    fun getPendingProducts(): Flow<List<ProductEntity>>
+
+    /** ➋ Actualiza el estado (‘approved’ o ‘rejected’) localmente. */
+    @Query("UPDATE products SET status = :newStatus WHERE id = :id")
+    suspend fun updateStatus(id: String, newStatus: String)
 }

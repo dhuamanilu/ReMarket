@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import com.example.remarket.data.repository.UserRepository
+import com.example.remarket.util.Resource
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,10 +28,11 @@ data class LoginUiState(
     val isPasswordValid: Boolean = true
 )
 
-@HiltViewModel // <-- Asegúrate que esta anotación esté
+@HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val firebaseAuth: FirebaseAuth, // Inyecta FirebaseAuth
-    private val tokenManager: TokenManager    // Inyecta nuestro TokenManager
+    private val firebaseAuth: FirebaseAuth,
+    private val tokenManager: TokenManager,
+    private val userRepo: com.example.remarket.data.repository.UserRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -96,15 +98,30 @@ class LoginViewModel @Inject constructor(
                     }
                     tokenManager.saveToken(tokenResult.token ?: "")
 
+                    // Verificamos el rol del usuario
+                    val res = userRepo.getUserById(user.uid!!)
+
+                    // Asignamos el evento de navegación basado en el rol
+                    _navigationEvent.value = if (
+                        res is Resource.Success &&
+                        res.data?.role?.equals("admin", ignoreCase = true) == true
+                    ) {
+                        NavigationEvent.NavigateToAdmin
+                    } else {
+                        NavigationEvent.NavigateToHome
+                    }
+
                     _uiState.value = _uiState.value.copy(isLoading = false, isLoginSuccessful = true)
 
-                    // Aquí puedes añadir lógica de roles si la necesitas en el futuro,
-                    // por ahora, simplemente navegamos a Home.
-                    _navigationEvent.value = NavigationEvent.NavigateToHome
+                    // ELIMINADO: La línea que sobrescribía con NavigateToHome
+                    // _navigationEvent.value = NavigationEvent.NavigateToHome
 
                 } else {
                     // Caso muy raro donde el login es exitoso pero el usuario es nulo
-                    _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = "No se pudo obtener la información del usuario.")
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "No se pudo obtener la información del usuario."
+                    )
                 }
 
             } catch (e: Exception) {
@@ -117,11 +134,6 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-
-    fun onForgotPasswordClicked() {
-        _navigationEvent.value = NavigationEvent.NavigateToForgotPassword
-    }
-
     fun clearNavigationEvent() {
         _navigationEvent.value = null
     }
@@ -132,9 +144,9 @@ class LoginViewModel @Inject constructor(
 
     private fun validateEmail(email: String): Boolean {
         return email.isNotBlank() &&
-               email.contains("@") &&
-               email.contains(".") &&
-               email.length >= 5
+                email.contains("@") &&
+                email.contains(".") &&
+                email.length >= 5
     }
 
     private fun validatePassword(password: String): Boolean {
@@ -143,7 +155,8 @@ class LoginViewModel @Inject constructor(
 }
 
 sealed class NavigationEvent {
+    object Idle : NavigationEvent()
     object NavigateToHome : NavigationEvent()
     object NavigateToAdmin : NavigationEvent()
-    object NavigateToForgotPassword : NavigationEvent()
+    data class Error(val msg: String) : NavigationEvent()
 }

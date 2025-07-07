@@ -3,6 +3,7 @@ package com.example.remarket.ui.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,6 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.navigation
 import com.example.remarket.ui.admin.AdminPendingProductsScreen
 import com.example.remarket.ui.admin.AdminProductDetailScreen
+import com.example.remarket.ui.admin.ManageReportsScreen
 import com.example.remarket.ui.auth.login.LoginScreen
 import com.example.remarket.ui.auth.login.LoginViewModel
 import com.example.remarket.ui.auth.login.NavigationEvent
@@ -25,12 +27,15 @@ import com.example.remarket.ui.home.HomeScreen
 import com.example.remarket.ui.product.detail.ProductDetailScreen
 import com.example.remarket.ui.home.HomeScreen // Importa la pantalla real
 import com.example.remarket.ui.home.HomeViewModel // Importa el ViewModel real
+import com.example.remarket.ui.myproducts.MyProductsScreen
+import com.example.remarket.ui.myproducts.MyProductsViewModel
 import com.example.remarket.ui.product.create.CreateProductViewModel
 import com.example.remarket.ui.product.create.ReviewScreen
 import com.example.remarket.ui.product.create.Step1Screen
 import com.example.remarket.ui.product.create.Step2Screen
 import com.example.remarket.ui.product.create.Step3Screen
 import com.example.remarket.ui.product.detail.ProductDetailViewModel
+import com.example.remarket.ui.profile.ProfileScreen
 import com.google.firebase.auth.FirebaseAuth
 
 // Definición de rutas centralizada y clara
@@ -47,6 +52,9 @@ object Routes {
     const val FORGOT_PASSWORD = "forgot_password"
     const val PURCHASE = "purchase/{productId}"
     const val ADMIN_PRODUCT_DETAIL = "admin_product_detail/{productId}"
+    const val MY_PRODUCTS   = "my_products"
+    const val PROFILE       = "profile"
+    const val ADMIN_REPORTS = "admin_reports"
 }
 
 @Composable
@@ -152,33 +160,48 @@ fun AppNavGraph(
             }
         }
 
-        // Pantalla principal (Home)
         composable(Routes.HOME) {
-            val homeViewModel: HomeViewModel = hiltViewModel()
-            val uiState by homeViewModel.uiState.collectAsState()
+            val vm: HomeViewModel = hiltViewModel()
+            val ui by vm.uiState.collectAsState()
 
-            // Al iniciar Home, si el token está vacío, intenta obtenerlo.
-            LaunchedEffect(Unit) {
-                homeViewModel.fetchToken()
-            }
-
-            HomeScreen(
-                uiState = uiState,
-                onSearchQueryChanged = homeViewModel::onSearchQueryChanged,
-                onRefresh = homeViewModel::onRefresh,
-                onNavigateToProductDetail = { productId ->
-                    navController.navigate(Routes.PRODUCT_DETAIL.replace("{productId}", productId))
-                },
-                onNavigateToCreateProduct = {
-                    navController.navigate(Routes.PRODUCT_CREATE)
-                },
-                onLogout = {
-                    homeViewModel.onLogout()
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.HOME) { inclusive = true }
+            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = false) }) { padd ->
+                HomeScreen(
+                    uiState = ui,
+                    onSearchQueryChanged = vm::onSearchQueryChanged,
+                    onRefresh = vm::onRefresh,
+                    onNavigateToProductDetail = { id ->
+                        navController.navigate(Routes.PRODUCT_DETAIL.replace("{productId}", id))
+                    },
+                    onNavigateToCreateProduct = { navController.navigate(Routes.PRODUCT_CREATE) },
+                    onLogout = {
+                        vm.onLogout()
+                        navController.navigate(Routes.LOGIN) { popUpTo(Routes.HOME) { inclusive = true } }
                     }
-                }
-            )
+                )
+            }
+        }
+
+        // --- Mis Productos ---
+        composable(Routes.MY_PRODUCTS) {
+            val vm: MyProductsViewModel = hiltViewModel()
+            val ui by vm.uiState.collectAsState()
+            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = false) }) { padd ->
+                MyProductsScreen(uiState = ui, paddingValues = padd)
+            }
+        }
+
+        // --- Perfil ---
+        composable(Routes.PROFILE) {
+            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = false) }) { padd ->
+                ProfileScreen()                       // o tu pantalla real de perfil
+            }
+        }
+
+        // --- Reportes (admin) ---
+        composable(Routes.ADMIN_REPORTS) {
+            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = true) }) { padd ->
+                ManageReportsScreen()                 // ya existe como stub
+            }
         }
 
         // Detalle de producto

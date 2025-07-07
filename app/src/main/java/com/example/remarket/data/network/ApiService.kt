@@ -23,6 +23,9 @@ interface ApiService {
     @GET("products")
     suspend fun getProducts(): List<ProductDto>
 
+    @GET("products/mine")
+    suspend fun getMyProducts(): List<ProductDto>
+
     @GET("products/{productId}")
     suspend fun getProductById(
         @Path("productId") productId: String

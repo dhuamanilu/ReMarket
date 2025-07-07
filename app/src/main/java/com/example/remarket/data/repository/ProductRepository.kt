@@ -67,6 +67,22 @@ class ProductRepository @Inject constructor(
         }
     }
 
+    override fun getMyProducts(): Flow<Resource<List<Product>>> = flow {
+        emit(Resource.Loading)
+        try {
+            // Llamada al endpoint /products/mine
+            val dtos = api.getMyProducts()
+            // Mapear a dominio
+            val products = dtos.map { it.toDomain() }
+            emit(Resource.Success(products))
+        } catch (e: HttpException) {
+            emit(Resource.Error("Error HTTP: ${e.code()}"))
+        } catch (e: IOException) {
+            emit(Resource.Error("Error de red: ${e.localizedMessage}"))
+        }
+    }.flowOn(Dispatchers.IO)
+
+
     /**
      * Única función que habla con la red para obtener la lista de productos.
      * Obtiene los datos, limpia la BD local DE PRODUCTOS SINCRONIZADOS y guarda los nuevos.

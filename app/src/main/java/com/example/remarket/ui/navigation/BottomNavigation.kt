@@ -19,7 +19,8 @@ data class BottomNavItem(val label: String,
 @Composable
 fun BottomNavigationBar(
     navController: NavHostController,
-    isAdmin: Boolean
+    isAdmin: Boolean,
+    firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) {
     val items = if (isAdmin) listOf(
         BottomNavItem("Solicitudes", Routes.ADMIN_HOME, Icons.Default.Inbox),
@@ -38,14 +39,23 @@ fun BottomNavigationBar(
                 selected = selected,
                 onClick = {
                     if (!selected) {
-                        navController.navigate(item.route) {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+                        val requiresAuth = item.route == Routes.MY_PRODUCTS || item.route == Routes.PROFILE
+                        if (requiresAuth && firebaseAuth.currentUser == null) {
+                            navController.navigate(Routes.LOGIN) {
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        } else {
+                            navController.navigate(item.route) {
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     }
                 },
-                icon  = { Icon(item.icon, item.label) },
+                icon = { Icon(item.icon, item.label) },
                 label = { Text(item.label) }
             )
         }

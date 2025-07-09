@@ -50,4 +50,6 @@ interface ApiService {
     suspend fun getUserById(
         @Path("userId") userId: String
     ): UserDto
+    @GET("users/me")
+    suspend fun getMyProfile(): UserDto
 }

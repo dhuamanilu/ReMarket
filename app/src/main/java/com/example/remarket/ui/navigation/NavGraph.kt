@@ -25,7 +25,6 @@ import com.example.remarket.ui.auth.register.Register2Screen
 import com.example.remarket.ui.auth.register.RegisterViewModel
 import com.example.remarket.ui.home.HomeScreen
 import com.example.remarket.ui.product.detail.ProductDetailScreen
-import com.example.remarket.ui.home.HomeScreen // Importa la pantalla real
 import com.example.remarket.ui.home.HomeViewModel // Importa el ViewModel real
 import com.example.remarket.ui.myproducts.MyProductsScreen
 import com.example.remarket.ui.myproducts.MyProductsViewModel
@@ -36,6 +35,7 @@ import com.example.remarket.ui.product.create.Step2Screen
 import com.example.remarket.ui.product.create.Step3Screen
 import com.example.remarket.ui.product.detail.ProductDetailViewModel
 import com.example.remarket.ui.profile.ProfileScreen
+import com.example.remarket.ui.profile.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
 
 // Definición de rutas centralizada y clara
@@ -64,12 +64,10 @@ fun AppNavGraph(
     navController: NavHostController = rememberNavController(),
     firebaseAuth: FirebaseAuth
 ) {
-    // Determina la ruta inicial basándose en si el usuario está logueado
-    val startDestination = if (firebaseAuth.currentUser != null) {
-        Routes.HOME
-    } else {
-        Routes.LOGIN
-    }
+    // Siempre iniciamos en la pantalla de productos. Si el usuario
+    // no está autenticado podrá navegar y solo se le pedirá iniciar
+    // sesión cuando intente realizar una compra.
+    val startDestination = Routes.HOME
 
     NavHost(
         navController = navController,
@@ -167,7 +165,7 @@ fun AppNavGraph(
             val ui by vm.uiState.collectAsState()
 
             Scaffold(
-                bottomBar = { BottomNavigationBar(navController, isAdmin = false) }
+                bottomBar = { BottomNavigationBar(navController, isAdmin = false, firebaseAuth = firebaseAuth) }
             ) { innerPadding ->
                 HomeScreen(
                     uiState = ui,
@@ -194,27 +192,37 @@ fun AppNavGraph(
 
         // --- Mis Productos ---
         composable(Routes.MY_PRODUCTS) {
-            val vm: MyProductsViewModel = hiltViewModel()
-            val ui by vm.uiState.collectAsState()
-            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = false) }) { padd ->
-                MyProductsScreen(uiState = ui, paddingValues = padd, onNavigateToProductDetail = { id ->
-                    navController.navigate(
-                        Routes.PRODUCT_DETAIL.replace("{productId}", id)
-                    )
-                })
+            if (firebaseAuth.currentUser == null) {
+                LaunchedEffect(Unit) { navController.navigate(Routes.LOGIN) }
+            } else {
+                val vm: MyProductsViewModel = hiltViewModel()
+                val ui by vm.uiState.collectAsState()
+                Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = false, firebaseAuth = firebaseAuth) }) { padd ->
+                    MyProductsScreen(uiState = ui, paddingValues = padd, onNavigateToProductDetail = { id ->
+                        navController.navigate(
+                            Routes.PRODUCT_DETAIL.replace("{productId}", id)
+                        )
+                    })
+                }
             }
         }
 
         // --- Perfil ---
         composable(Routes.PROFILE) {
-            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = false) }) { padd ->
-                ProfileScreen()                       // o tu pantalla real de perfil
+            if (firebaseAuth.currentUser == null) {
+                LaunchedEffect(Unit) { navController.navigate(Routes.LOGIN) }
+            } else {
+                val vm: ProfileViewModel = hiltViewModel()
+                val ui by vm.uiState.collectAsState()
+                Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = false, firebaseAuth = firebaseAuth) }) { padd ->
+                    ProfileScreen(state = ui, padding = padd)
+                }
             }
         }
 
         // --- Reportes (admin) ---
         composable(Routes.ADMIN_REPORTS) {
-            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = true) }) { padd ->
+            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = true, firebaseAuth = firebaseAuth) }) { padd ->
                 ManageReportsScreen()                 // ya existe como stub
             }
         }
@@ -229,7 +237,11 @@ fun AppNavGraph(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onBuyProduct = { prodId ->
-                    navController.navigate(Routes.PURCHASE.replace("{productId}", prodId))
+                    if (firebaseAuth.currentUser != null) {
+                        navController.navigate(Routes.PURCHASE.replace("{productId}", prodId))
+                    } else {
+                        navController.navigate(Routes.LOGIN)
+                    }
                 },
                 onNavigateToEdit = { prodId ->
                     navController.navigate(Routes.PRODUCT_EDIT.replace("{productId}", prodId))
@@ -250,7 +262,7 @@ fun AppNavGraph(
 
         // Pantalla de administrador
         composable(Routes.ADMIN_HOME) {
-            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = true) }) { padd ->
+            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = true, firebaseAuth = firebaseAuth) }) { padd ->
                 AdminPendingProductsScreen(
                     onProductClick = { id ->
                         navController.navigate(

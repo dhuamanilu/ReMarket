@@ -81,4 +81,21 @@ class UserRepository @Inject constructor(private val api: ApiService) {
             Resource.Error(e.localizedMessage ?: "Error desconocido")
         }
     }
+    suspend fun getMyProfile(): Resource<User> = withContext(Dispatchers.IO) {
+        try {
+            val user = api.getMyProfile().toDomain()
+            Resource.Success(user)
+        } catch (e: UnknownHostException) {
+            Resource.Error("Sin conexión a internet")
+        } catch (e: SocketTimeoutException) {
+            Resource.Error("Tiempo de espera agotado")
+        } catch (e: IOException) {
+            Resource.Error("Error de red: ${e.localizedMessage}")
+        } catch (e: HttpException) {
+            val msg = "Error ${e.code()}: ${e.message()}"
+            Resource.Error(msg)
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Error desconocido")
+        }
+    }
 }

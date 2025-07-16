@@ -1,144 +1,229 @@
 // ui/home/HomeScreen.kt
 package com.example.remarket.ui.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.example.remarket.data.model.Product
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
-import androidx.compose.material.icons.Icons // <-- AÑADIR
-import androidx.compose.material.icons.filled.CloudOff // <-- AÑADIR
-import androidx.compose.material3.Icon
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 
-
-/**
- * Pantalla principal básica con navegación a detalle de producto, creación y logout.
- */
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
     paddingValues: PaddingValues,
     onSearchQueryChanged: (String) -> Unit,
-    onRefresh: () -> Unit, // Callback para iniciar la actualización
+    onRefresh: () -> Unit,
     onNavigateToProductDetail: (String) -> Unit,
     onNavigateToCreateProduct: () -> Unit,
     onLogout: () -> Unit
 ) {
-    // Estado para el componente SwipeRefresh, controlado por el ViewModel
-    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = uiState.isLoading)
-
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        // Envolvemos todo en SwipeRefresh
-        SwipeRefresh(
-            state = swipeRefreshState,
-            onRefresh = onRefresh, // Se llama cuando el usuario desliza
-            modifier = Modifier.fillMaxSize().padding(paddingValues)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+    Scaffold(
+        modifier = Modifier.padding(paddingValues),
+        bottomBar = {
+            // Contenedor elevado con esquinas redondeadas
+            Surface(
+                tonalElevation = 4.dp,
+                shadowElevation = 8.dp,
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                color = MaterialTheme.colorScheme.surface
             ) {
-                Text(
-                    text = "Bienvenido a ReMarket",
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.padding(bottom = 24.dp)
-                )
-
-                OutlinedTextField(
-                    value = uiState.searchQuery,
-                    onValueChange = onSearchQueryChanged,
-                    label = { Text("Buscar por marca, modelo...") },
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp)
-                )
-
-                // Si hay un error y no hay productos cacheados, muestra el error.
-                if (uiState.error != null && uiState.allProducts.isEmpty()) {
-                    Text(
-                        text = uiState.error,
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Botón principal con icono
+                    Button(
+                        onClick = onNavigateToCreateProduct,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 20.dp)
-                    )
-                } else {
-                    // La lista siempre se muestra desde el estado, incluso si está vacía.
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                            .weight(1f)
+                            .height(56.dp),
+                        shape = MaterialTheme.shapes.extraLarge
                     ) {
-                        items(uiState.filteredProducts) { product ->
-                            // --- BLOQUE MODIFICADO PARA MOSTRAR ESTADO ---
-                            Button(
-                                onClick = { onNavigateToProductDetail(product.id) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(56.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Text(text = "${product.brand} ${product.model}")
-                                    // Si el producto no está sincronizado, muestra un ícono
-                                    if (!product.isSynced) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Icon(
-                                            imageVector = Icons.Default.CloudOff,
-                                            contentDescription = "Pendiente de sincronización",
-                                            tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Vender producto"
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Vender")
+                    }
+                    // Botón secundario
+                    OutlinedButton(
+                        onClick = onLogout,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        shape = MaterialTheme.shapes.extraLarge
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Logout,
+                            contentDescription = "Cerrar sesión"
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Cerrar sesión")
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Botones de acción
-                Button(
-                    onClick = onNavigateToCreateProduct,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                ) {
-                    Text(text = "Vender un producto")
+            }
+        }
+    ) { innerPadding ->
+        val swipeState = rememberSwipeRefreshState(isRefreshing = uiState.isLoading)
+        SwipeRefresh(
+            state = swipeState,
+            onRefresh = onRefresh,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Encabezado
+                item {
+                    Text(
+                        text = "Bienvenido a ReMarket",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = onLogout,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                ) {
-                    Text(text = "Cerrar sesión")
+                // Campo de búsqueda
+                item {
+                    OutlinedTextField(
+                        value = uiState.searchQuery,
+                        onValueChange = onSearchQueryChanged,
+                        label = { Text("Buscar marca, modelo…") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                // Error si no hay caché
+                if (uiState.error != null && uiState.filteredProducts.isEmpty()) {
+                    item {
+                        Text(
+                            text = uiState.error,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp)
+                        )
+                    }
+                }
+                // Lista de productos
+                items(uiState.filteredProducts) { product ->
+                    ProductCard(
+                        product = product,
+                        onClick = { onNavigateToProductDetail(product.id) }
+                    )
+                }
+                // Placeholder vacío
+                if (!uiState.isLoading && uiState.filteredProducts.isEmpty() && uiState.error == null) {
+                    item {
+                        Text(
+                            text = "No se encontraron productos.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp)
+                        )
+                    }
+                }
+                // Espacio para no tapar el contenido con el bottomBar
+                item {
+                    Spacer(Modifier.height(80.dp))
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ProductCard(
+    product: Product,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+        ) {
+            AsyncImage(
+                model = product.images.firstOrNull(),
+                contentDescription = "${product.brand} ${product.model}",
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier
+                    .size(96.dp)
+                    .padding(8.dp)
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 8.dp, horizontal = 4.dp)
+            ) {
+                Text(
+                    text = "${product.brand} ${product.model}",
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "S/ ${product.price}",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "Almacenamiento: ${product.storage} GB",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(Modifier.height(4.dp))
+                if (!product.isSynced) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.CloudOff,
+                            contentDescription = "Pendiente de sincronización",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "Sincronizar",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+            Icon(
+                Icons.Default.ArrowForward,
+                contentDescription = "Ver detalle",
+                modifier = Modifier
+                    .align(Alignment.CenterVertically)
+                    .padding(end = 12.dp)
+            )
         }
     }
 }

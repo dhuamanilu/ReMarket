@@ -2,12 +2,15 @@ package com.example.remarket.ui.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.remarket.data.network.TokenManager
 import com.example.remarket.data.repository.IProductRepository
 import com.example.remarket.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.google.firebase.auth.FirebaseAuth // <-- AÑADE ESTE IMPORT
+
 
 data class PendingUiState(
     val products: List<com.example.remarket.data.model.Product> = emptyList(),
@@ -19,14 +22,19 @@ data class PendingUiState(
 
 @HiltViewModel
 class AdminPendingProductsViewModel @Inject constructor(
-    private val repo: IProductRepository
+    private val repo: IProductRepository,
+    private val firebaseAuth: FirebaseAuth,
+    private val tokenManager: TokenManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PendingUiState())
     val state: StateFlow<PendingUiState> = _state.asStateFlow()
 
     init { load() }
-
+    fun onLogout() {
+        firebaseAuth.signOut()
+        tokenManager.clearToken()
+    }
     private fun load() = viewModelScope.launch {
         repo.getPendingProductsFromFirebase().collect { res ->
             when (res) {

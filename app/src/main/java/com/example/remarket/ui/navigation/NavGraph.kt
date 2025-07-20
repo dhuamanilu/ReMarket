@@ -37,9 +37,11 @@ import com.example.remarket.ui.product.detail.ProductDetailViewModel
 import com.example.remarket.ui.profile.ProfileScreen
 import com.example.remarket.ui.profile.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.example.remarket.ui.admin.AdminPendingProductsViewModel
 
 // Definición de rutas centralizada y clara
 object Routes {
+    const val ROOT = "root" // <-- AÑADIDO
     const val LOGIN = "login"
     const val REGISTER_FLOW = "register_flow"
     const val REGISTER_1 = "register_1"
@@ -67,12 +69,16 @@ fun AppNavGraph(
     // Siempre iniciamos en la pantalla de productos. Si el usuario
     // no está autenticado podrá navegar y solo se le pedirá iniciar
     // sesión cuando intente realizar una compra.
-    val startDestination = Routes.HOME
+    val startDestination = Routes.ROOT
 
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
+        // --- NUEVA RUTA DE INICIO ---
+        composable(Routes.ROOT) {
+            RootScreen(navController = navController)
+        }
         // Pantalla de Login
         composable(Routes.LOGIN) {
             val loginViewModel: LoginViewModel = hiltViewModel()
@@ -262,14 +268,18 @@ fun AppNavGraph(
 
         // Pantalla de administrador
         composable(Routes.ADMIN_HOME) {
+            val vm: AdminPendingProductsViewModel = hiltViewModel()
+
             Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = true, firebaseAuth = firebaseAuth) }) { padd ->
                 AdminPendingProductsScreen(
+                    vm = vm,
                     onProductClick = { id ->
                         navController.navigate(
                             Routes.ADMIN_PRODUCT_DETAIL.replace("{productId}", id)
                         )
                     },
                     onLogout = {
+                        vm.onLogout()
                         navController.navigate(Routes.LOGIN) {
                             popUpTo(Routes.ADMIN_HOME) { inclusive = true }
                         }
@@ -359,13 +369,46 @@ private fun ProductCreateFlow(navController: NavHostController, productIdForEdit
 // --- Implementaciones básicas para que el NavGraph compile ---
 
 @Composable
-fun AdminHomeScreen(onLogout: () -> Unit) {
-    androidx.compose.material3.Text("Admin Home Screen - TODO")
+fun RootScreen(navController: NavHostController, viewModel: RootViewModel = hiltViewModel()) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    // Este efecto se ejecutará cuando el 'target' cambie (de Loading a Home, Admin, o Login)
+    LaunchedEffect(uiState.target) {
+        val destination = when (uiState.target) {
+            is NavigationTarget.Home -> Routes.HOME
+            is NavigationTarget.Admin -> Routes.ADMIN_HOME
+            is NavigationTarget.Login -> Routes.LOGIN
+            is NavigationTarget.Loading -> null // Aún no hay destino
+        }
+
+        destination?.let {
+            navController.navigate(it) {
+                // Limpiamos la pila de navegación para que el usuario no pueda
+                // volver a esta pantalla de enrutamiento con el botón 'atrás'.
+                popUpTo(Routes.ROOT) { inclusive = true }
+            }
+        }
+    }
+
+    // Muestra un indicador de carga en pantalla completa mientras se decide el destino
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        androidx.compose.material3.CircularProgressIndicator()
+    }
 }
 
 @Composable
+fun ManageReportsScreen() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("Pantalla de Reportes (Admin) - TODO")
+    }
+}
+
+
+@Composable
 fun ForgotPasswordScreen(onNavigateBack: () -> Unit) {
-    androidx.compose.material3.Text("Forgot Password Screen - TODO")
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("Pantalla de Olvidé Contraseña - TODO")
+    }
 }
 
 @Composable
@@ -374,5 +417,7 @@ fun PurchaseScreen(
     onNavigateBack: () -> Unit,
     onPurchaseComplete: () -> Unit
 ) {
-    androidx.compose.material3.Text("Purchase Screen for product $productId - TODO")
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("Pantalla de Compra para producto $productId - TODO")
+    }
 }

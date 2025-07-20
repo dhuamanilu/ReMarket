@@ -20,9 +20,9 @@ import coil.compose.AsyncImage
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminPendingProductsScreen(
+    vm: AdminPendingProductsViewModel = hiltViewModel(),
     onProductClick: (String) -> Unit,
     onLogout: () -> Unit,
-    vm: AdminPendingProductsViewModel = hiltViewModel()
 ) {
     val ui = vm.state.collectAsState().value
 

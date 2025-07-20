@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -19,38 +20,51 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.remarket.data.model.Product
+import com.example.remarket.util.Resource
+import coil.compose.AsyncImage
+import com.example.remarket.data.model.Chat
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductDetailScreen(
     productId: String,
+    viewModel: ProductDetailViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
     onBuyProduct: (String) -> Unit,
-    viewModel: ProductDetailViewModel = viewModel(),
-    onNavigateToEdit: (String) -> Unit
+    onNavigateToEdit: (String) -> Unit,
+    onNavigateToChat: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val isLoaded by viewModel.isProductLoaded.collectAsState()
-    val context = LocalContext.current
+    val chatState by viewModel.chatState.collectAsState()
 
     LaunchedEffect(productId) {
         viewModel.loadProduct(productId)
     }
 
+    LaunchedEffect(chatState) {
+        if (chatState is Resource.Success) {
+            val chatId = (chatState as Resource.Success<Chat>).data.id
+            if (chatId.isNotEmpty()) {
+                onNavigateToChat(chatId)
+                viewModel.clearChatState()
+            }
+        }
+    }
+
     LaunchedEffect(uiState.deleteMessage) {
         uiState.deleteMessage?.let {
-            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
             if (it == "Producto eliminado.") {
                 onNavigateBack()
             }
@@ -75,67 +89,204 @@ fun ProductDetailScreen(
         )
     }
 
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Detalle del Producto") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.showReportDialog() }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Más opciones")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier.padding(paddingValues)) {
+            when {
+                uiState.isLoading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                uiState.error != null -> {
+                    ErrorSection(message = uiState.error!!, onRetry = { viewModel.loadProduct(productId) })
+                }
+                else -> {
+                    // --- INICIO DE LA CORRECCIÓN DEFINITIVA ---
+                    // Usamos '?.let'. Este bloque de código SOLO se ejecutará
+                    // si 'uiState.product' NO es nulo. Dentro del bloque,
+                    // 'product' es una variable garantizada como no nula.
+                    uiState.product?.let { product ->
+                        ProductDetailContent(
+                            product = product,
+                            sellerName = uiState.sellerName,
+                            isOwner = uiState.isOwner,
+                            onBuyProduct = onBuyProduct,
+                            onEditClick = { onNavigateToEdit(product.id) },
+                            onDeleteClick = { viewModel.onDeleteClicked() },
+                            onContactSeller = { viewModel.onContactSellerClicked(product.id) }
+                        )
+                    }
+                    // --- FIN DE LA CORRECCIÓN DEFINITIVA ---
+                }
+            }
+
+            if (uiState.showReportDialog) {
+                ReportDialog(
+                    isReporting = uiState.isReporting,
+                    onDismiss = { viewModel.hideReportDialog() },
+                    onReport = { viewModel.reportProduct(it) }
+                )
+            }
+            if (uiState.reportSuccess) {
+                AlertDialog(
+                    onDismissRequest = { viewModel.hideReportDialog() },
+                    title = { Text("Reporte Enviado") },
+                    text = { Text("Tu reporte ha sido enviado exitosamente.") },
+                    confirmButton = {
+                        TextButton(onClick = { viewModel.hideReportDialog() }) {
+                            Text("OK")
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProductDetailContent(
+    product: Product,
+    sellerName: String?,
+    isOwner: Boolean,
+    onBuyProduct: (String) -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    onContactSeller: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 16.dp)
     ) {
-        TopAppBar(
-            title = { Text("Detalle del Producto") },
-            navigationIcon = {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
-                }
-            },
-            actions = {
-                IconButton(onClick = { viewModel.showReportDialog() }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Más opciones")
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF6C63FF))
-        )
-
-        when {
-            uiState.isLoading -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color(0xFF6C63FF))
-                }
-            }
-            uiState.error != null -> {
-                ErrorSection(message = uiState.error!!, onRetry = { viewModel.clearError() })
-            }
-            isLoaded && uiState.product != null -> {
-                ProductDetailContent(
-                    product = uiState.product!!,
-                    sellerName = uiState.sellerName,
-                    isFavorite = uiState.isFavorite,
-                    onToggleFavorite = { viewModel.toggleFavorite() },
-                    onBuyProduct = onBuyProduct,
-                    isOwner = uiState.isOwner,
-                    onEditClick = { onNavigateToEdit(uiState.product!!.id) },
-                    onDeleteClick = { viewModel.onDeleteClicked() }
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(250.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            items(product.images) { imageUrl ->
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = "Imagen del producto",
+                    modifier = Modifier
+                        .fillParentMaxHeight()
+                        .aspectRatio(1f)
+                        .padding(horizontal = 4.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
                 )
             }
         }
 
-        if (uiState.showReportDialog) {
-            ReportDialog(
-                isReporting = uiState.isReporting,
-                onDismiss = { viewModel.hideReportDialog() },
-                onReport = { viewModel.reportProduct(it) }
+        Spacer(Modifier.height(16.dp))
+
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            Text(
+                text = "${product.brand} ${product.model} ${product.storage}",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "S/ ${"%.2f".format(product.price)}",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
             )
         }
-        if (uiState.reportSuccess) {
-            AlertDialog(
-                onDismissRequest = { viewModel.hideReportDialog() },
-                title = { Text("Reporte Enviado") },
-                text = { Text("Tu reporte ha sido enviado exitosamente.") },
-                confirmButton = {
-                    TextButton(onClick = { viewModel.hideReportDialog() }) {
-                        Text("OK")
+
+        Divider(modifier = Modifier.padding(vertical = 16.dp, horizontal = 16.dp))
+
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            DetailRow(icon = Icons.Default.Info, label = "Descripción", value = product.description)
+            DetailRow(icon = Icons.Default.Person, label = "Vendedor", value = sellerName ?: "Cargando...")
+            DetailRow(icon = Icons.Default.Inventory, label = "Incluye caja", value = if (product.box.isNotBlank()) "Sí" else "No")
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (isOwner) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = onEditClick,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Editar")
+                    }
+                    OutlinedButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Eliminar", color = MaterialTheme.colorScheme.error)
                     }
                 }
-            )
+            } else {
+                OutlinedButton(
+                    onClick = onContactSeller,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    Icon(Icons.Default.Chat, contentDescription = "Contactar")
+                    Spacer(Modifier.width(8.dp))
+                    Text("Contactar Vendedor")
+                }
+                Button(
+                    onClick = { onBuyProduct(product.id) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    Icon(Icons.Default.ShoppingCart, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Comprar")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailRow(icon: ImageVector, label: String, value: String) {
+    Row(
+        modifier = Modifier.padding(vertical = 8.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+        Spacer(Modifier.width(16.dp))
+        Column {
+            Text(label, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+            Text(value, style = MaterialTheme.typography.bodyLarge)
         }
     }
 }
@@ -153,133 +304,8 @@ private fun ErrorSection(message: String, onRetry: () -> Unit) {
         Spacer(Modifier.height(16.dp))
         Text(text = message, color = Color.Red, textAlign = TextAlign.Center)
         Spacer(Modifier.height(16.dp))
-        Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF))) {
+        Button(onClick = onRetry) {
             Text("Reintentar")
         }
-    }
-}
-
-@Composable
-private fun ProductDetailContent(
-    product: Product,
-    isFavorite: Boolean,
-    onToggleFavorite: () -> Unit,
-    onBuyProduct: (String) -> Unit,
-    sellerName: String? = null,
-    isOwner: Boolean,
-    onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        // Carrusel de imágenes
-        LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp)
-        ) {
-            items(product.images.size) { idx ->
-                AsyncImage(
-                    model = product.images[idx],
-                    contentDescription = "Imagen ${idx + 1}",
-                    modifier = Modifier
-                        .size(width = 200.dp, height = 200.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // Precio, marca y modelo
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(4.dp)
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Text("S/${product.price.toInt()}", fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(4.dp))
-                Text("${product.brand} ${product.model}", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Detalles adicionales
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-            DataRow(label = "Almacenamiento", value = product.storage)
-            DataRow(label = "Descripción", value = product.description)
-            DataRow(label = "Incluye caja", value = if (product.box.isNotBlank()) "Sí" else "No")
-            DataRow(label = "Vendedor", value = sellerName ?: "Cargando...")
-            DataRow(label = "Publicado", value = product.createdAt)
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Botones de Editar y Eliminar para el vendedor
-        if (isOwner) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = onEditClick,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)) // Verde para editar
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = "Editar")
-                    Spacer(Modifier.width(8.dp))
-                    Text("Editar")
-                }
-                OutlinedButton(
-                    onClick = onDeleteClick,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color.Red)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Eliminar", color = Color.Red)
-                }
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        // Comprar
-        Button(
-            onClick = { onBuyProduct(product.id) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF)),
-            enabled = !isOwner // El dueño no puede comprar su propio producto
-        ) {
-            Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = Color.White)
-            Spacer(Modifier.width(8.dp))
-            Text("Comprar", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        }
-
-        Spacer(Modifier.height(32.dp))
-    }
-}
-
-@Composable
-private fun DataRow(label: String, value: String) {
-    Column(modifier = Modifier.padding(vertical = 4.dp)) {
-        Text(label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.Gray)
-        Text(value, fontSize = 16.sp, color = Color.Black)
-        Divider(modifier = Modifier.padding(top = 4.dp))
     }
 }

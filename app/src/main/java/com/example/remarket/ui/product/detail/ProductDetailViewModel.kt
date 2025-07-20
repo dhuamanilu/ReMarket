@@ -17,6 +17,10 @@ import java.time.ZonedDateTime
 import javax.inject.Inject
 import com.google.firebase.auth.FirebaseAuth // <-- AÑADIDO
 import kotlinx.coroutines.flow.update
+import com.example.remarket.data.network.StartChatRequest // <-- AÑADE IMPORT
+import com.example.remarket.data.model.Chat // <-- AÑADE IMPORT
+import com.example.remarket.data.network.ApiService
+import kotlinx.coroutines.Dispatchers
 
 
 // El Data Class no necesita cambios
@@ -38,7 +42,9 @@ data class ProductDetailUiState(
 class ProductDetailViewModel @Inject constructor(
     private val productRepository: IProductRepository,
     private val userRepo: UserRepository,
-    private val firebaseAuth: FirebaseAuth // Se inyecta FirebaseAuth
+    private val firebaseAuth: FirebaseAuth, // Se inyecta FirebaseAuth
+    private val apiService: ApiService // <-- INYECTA EL APISERVICE
+
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProductDetailUiState())
@@ -54,7 +60,25 @@ class ProductDetailViewModel @Inject constructor(
         // Cada vez que el estado de autenticación cambia, re-verificamos si el usuario es el dueño.
         checkOwnership()
     }
+    private val _chatState = MutableStateFlow<Resource<Chat>>(Resource.Idle)
+    val chatState: StateFlow<Resource<Chat>> = _chatState.asStateFlow()
 
+    fun onContactSellerClicked(productId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _chatState.value = Resource.Loading
+            try {
+                val request = StartChatRequest(productId = productId)
+                val chat = apiService.startOrGetChat(request)
+                _chatState.value = Resource.Success(chat)
+            } catch (e: Exception) {
+                _chatState.value = Resource.Error("No se pudo iniciar el chat: ${e.message}")
+            }
+        }
+    }
+
+    fun clearChatState() {
+        _chatState.value = Resource.Idle
+    }
     init {
         // 2. Adjuntamos el listener al ViewModel cuando se crea.
         firebaseAuth.addAuthStateListener(authStateListener)

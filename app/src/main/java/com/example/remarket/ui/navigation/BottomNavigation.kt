@@ -9,6 +9,8 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Chat // <-- AÑADE ESTE IMPORT
+
 
 /**  Modelo de ítem **/
 data class BottomNavItem(val label: String,
@@ -28,6 +30,7 @@ fun BottomNavigationBar(
     ) else listOf(
         BottomNavItem("Productos",      Routes.HOME,        Icons.Default.Home),
         BottomNavItem("Mis Productos",  Routes.MY_PRODUCTS, Icons.Default.ShoppingCart),
+        BottomNavItem("Mis Chats",      Routes.CHATS,       Icons.Default.Chat), // <-- AÑADE ESTA LÍNEA
         BottomNavItem("Perfil",         Routes.PROFILE,     Icons.Default.Person)
     )
 
@@ -39,7 +42,7 @@ fun BottomNavigationBar(
                 selected = selected,
                 onClick = {
                     if (!selected) {
-                        val requiresAuth = item.route == Routes.MY_PRODUCTS || item.route == Routes.PROFILE
+                        val requiresAuth = item.route == Routes.MY_PRODUCTS || item.route == Routes.PROFILE || item.route == Routes.CHATS
                         if (requiresAuth && firebaseAuth.currentUser == null) {
                             navController.navigate(Routes.LOGIN) {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }

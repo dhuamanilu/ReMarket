@@ -38,7 +38,8 @@ import com.example.remarket.ui.profile.ProfileScreen
 import com.example.remarket.ui.profile.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.example.remarket.ui.admin.AdminPendingProductsViewModel
-
+import com.example.remarket.ui.chat.ChatListScreen // <-- AÑADE
+import com.example.remarket.ui.chat.ChatScreen // <-- AÑADE
 // Definición de rutas centralizada y clara
 object Routes {
     const val ROOT = "root" // <-- AÑADIDO
@@ -59,6 +60,8 @@ object Routes {
     const val ADMIN_REPORTS = "admin_reports"
     const val REQUESTS       = "requests"      // ← NUEVA
     const val REPORTS        = "reports"       // ← NUEVA
+    const val CHATS = "chats" // <-- AÑADE ESTA LÍNEA
+    const val CHAT_DETAIL = "chats/{chatId}" // <-- AÑADE ESTA LÍNEA
 }
 
 @Composable
@@ -212,7 +215,32 @@ fun AppNavGraph(
                 }
             }
         }
+// --- RUTA PARA LA LISTA DE CHATS ---
+        composable(Routes.CHATS) {
+            if (firebaseAuth.currentUser == null) {
+                LaunchedEffect(Unit) { navController.navigate(Routes.LOGIN) }
+            } else {
+                Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = false, firebaseAuth = firebaseAuth) }) { padd ->
+                    ChatListScreen(
+                        paddingValues = padd,
+                        onChatClick = { chatId -> navController.navigate(Routes.CHAT_DETAIL.replace("{chatId}", chatId)) }
+                    )
+                }
+            }
+        }
 
+        // --- RUTA PARA LA PANTALLA DE CONVERSACIÓN ---
+        composable(Routes.CHAT_DETAIL) { backStackEntry ->
+            if (firebaseAuth.currentUser == null) {
+                LaunchedEffect(Unit) { navController.navigate(Routes.LOGIN) }
+            } else {
+                val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+                ChatScreen(
+                    chatId = chatId,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+        }
         // --- Perfil ---
         composable(Routes.PROFILE) {
             if (firebaseAuth.currentUser == null) {
@@ -234,12 +262,11 @@ fun AppNavGraph(
         }
 
         // Detalle de producto
-        composable(Routes.PRODUCT_DETAIL) { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+        composable(Routes.PRODUCT_DETAIL) {
             val viewModel: ProductDetailViewModel = hiltViewModel()
 
             ProductDetailScreen(
-                productId = productId,
+                productId = it.arguments?.getString("productId") ?: "",
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onBuyProduct = { prodId ->
@@ -249,9 +276,10 @@ fun AppNavGraph(
                         navController.navigate(Routes.LOGIN)
                     }
                 },
-                onNavigateToEdit = { prodId ->
-                    navController.navigate(Routes.PRODUCT_EDIT.replace("{productId}", prodId))
-                }
+                onNavigateToEdit = { prodId -> navController.navigate(Routes.PRODUCT_EDIT.replace("{productId}", prodId)) },
+
+                // --- AÑADE ESTA LÍNEA ---
+                onNavigateToChat = { chatId -> navController.navigate(Routes.CHAT_DETAIL.replace("{chatId}", chatId)) }
             )
         }
 

@@ -10,7 +10,8 @@ import retrofit2.http.PUT // <-- AÑADIDO
 import com.example.remarket.data.model.ProductDto
 import com.example.remarket.data.model.UserDto
 import com.example.remarket.data.model.RegisterResponse
-
+import com.example.remarket.data.model.Chat // <-- AÑADE ESTE IMPORT
+import com.example.remarket.data.network.StartChatRequest // <-- AÑADE ESTE IMPORT
 import retrofit2.http.GET
 import retrofit2.http.Path
 
@@ -52,4 +53,7 @@ interface ApiService {
     ): UserDto
     @GET("users/me")
     suspend fun getMyProfile(): UserDto
+
+    @POST("chats") // <-- AÑADE ESTA NUEVA FUNCIÓN
+    suspend fun startOrGetChat(@Body request: StartChatRequest): Chat
 }

@@ -8,5 +8,7 @@ data class User(
     val lastName: String,
     val email: String,
     val role: String,
-    val isApproved: Boolean
+    val isApproved: Boolean,
+    val dniFrontUrl: String? = null,   // ➊
+    val dniBackUrl: String? = null     // ➊
 )

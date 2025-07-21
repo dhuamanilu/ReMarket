@@ -1,6 +1,7 @@
 // File: app/src/main/java/com/example/remarket/data/repository/UserRepository.kt
 package com.example.remarket.data.repository
 
+import android.util.Log
 import com.example.remarket.data.model.User
 import com.example.remarket.data.model.UserDto
 import com.example.remarket.data.model.toDomain
@@ -64,6 +65,7 @@ class UserRepository @Inject constructor(private val api: ApiService) {
     suspend fun getUserById(userId: String): Resource<UserDto> = withContext(Dispatchers.IO) {
         try {
             val user = api.getUserById(userId)
+            Log.d("API_DEBUG", "getUserById → $user")   // ⬅️ imprime el DTO completo
             Resource.Success(user)
         } catch (e: UnknownHostException) {
             Resource.Error("Sin conexión a internet")

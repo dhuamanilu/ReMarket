@@ -26,5 +26,7 @@ fun UserDto.toDomain(): User = User(
     lastName = lastName,
     email = email,
     role = role,
-    isApproved = approved
+    isApproved = approved,
+    dniFrontUrl = dniFrontUrl,   // ➊
+    dniBackUrl  = dniBackUrl     // ➊
 )

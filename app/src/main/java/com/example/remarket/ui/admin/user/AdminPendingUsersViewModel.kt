@@ -39,7 +39,7 @@ class AdminPendingUsersViewModel @Inject constructor(
         tokenManager.clearToken()
     }
 
-    private fun load() = viewModelScope.launch {
+    fun load() = viewModelScope.launch {
         _state.update { it.copy(isLoading = true) }
         when (val res = repo.getPendingUsers()) {
             is Resource.Success -> _state.update {

@@ -193,6 +193,7 @@ fun AppNavGraph(
             Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = true, firebaseAuth) }) { padd ->
                 AdminPendingUsersScreen(
                     vm = vm,
+                    navController = navController,
                     onUserClick = { id ->
                         navController.navigate(Routes.ADMIN_USER_DETAIL.replace("{userId}", id))
                     },
@@ -209,7 +210,9 @@ fun AppNavGraph(
 // ---- Detalle de usuario ----
         composable(Routes.ADMIN_USER_DETAIL) { backStack ->
             val id = backStack.arguments?.getString("userId") ?: ""
-            AdminUserDetailScreen(userId = id, onBack = { navController.popBackStack() })
+            AdminUserDetailScreen(userId = id,
+               navController = navController
+                ,onBack = { navController.popBackStack() })
         }
         composable(Routes.HOME) {
             val vm: HomeViewModel = hiltViewModel()

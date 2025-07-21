@@ -56,4 +56,15 @@ interface ApiService {
 
     @POST("chats") // <-- AÑADE ESTA NUEVA FUNCIÓN
     suspend fun startOrGetChat(@Body request: StartChatRequest): Chat
+
+    // Solo admin: usuarios sin aprobar
+    @GET("users?approved=false")
+    suspend fun getPendingUsers(): List<UserDto>
+
+    @PUT("users/{userId}")
+    suspend fun updateUserStatus(
+        @Path("userId") userId: String,
+        @Body request: ApproveRequest
+    ): UserDto
+
 }

@@ -25,7 +25,8 @@ fun BottomNavigationBar(
     firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) {
     val items = if (isAdmin) listOf(
-        BottomNavItem("Solicitudes", Routes.ADMIN_HOME, Icons.Default.Inbox),
+        BottomNavItem("Aprobar Usuarios", Routes.ADMIN_USERS, Icons.Default.PersonSearch),
+        BottomNavItem("Aprobar Productos", Routes.ADMIN_HOME, Icons.Default.Inbox),
         BottomNavItem("Reportes",    Routes.ADMIN_REPORTS, Icons.Default.Assessment),
     ) else listOf(
         BottomNavItem("Productos",      Routes.HOME,        Icons.Default.Home),

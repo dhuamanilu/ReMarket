@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -23,7 +24,22 @@ fun AdminPendingProductsScreen(
     vm: AdminPendingProductsViewModel = hiltViewModel(),
     onProductClick: (String) -> Unit,
     onLogout: () -> Unit,
+    navController: NavHostController   // pásalo desde AppNavGraph
 ) {
+    // 🔸  Escucha sólo una vez (LaunchedEffect con key == currentBackStackEntry)
+    LaunchedEffect(navController.currentBackStackEntry) {
+        navController.currentBackStackEntry
+            ?.savedStateHandle
+            ?.getLiveData<Boolean>("refreshPending")
+            ?.observeForever { shouldRefresh ->
+                if (shouldRefresh == true) {
+                    vm.load()                       // ← llama otra vez al repo
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.remove<Boolean>("refreshPending")
+                }
+            }
+    }
     val ui = vm.state.collectAsState().value
 
     Scaffold(topBar = {

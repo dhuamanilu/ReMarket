@@ -5,6 +5,7 @@ import com.example.remarket.data.model.User
 import com.example.remarket.data.model.UserDto
 import com.example.remarket.data.model.toDomain
 import com.example.remarket.data.network.ApiService
+import com.example.remarket.data.network.ApproveRequest
 import com.example.remarket.data.network.RegisterRequest
 import com.example.remarket.util.Resource
 import kotlinx.coroutines.Dispatchers
@@ -98,4 +99,41 @@ class UserRepository @Inject constructor(private val api: ApiService) {
             Resource.Error(e.localizedMessage ?: "Error desconocido")
         }
     }
+    //  ➜  Pega esto dentro de la clase UserRepository
+//--------------------------------------------------------------------------
+
+    /**  Lista de usuarios NO aprobados (solo admin) */
+    suspend fun getPendingUsers(): Resource<List<User>> = withContext(Dispatchers.IO) {
+        try {
+            val list = api.getPendingUsers().filter { !it.approved }            // <-- solo NO aprobados
+                .map { it.toDomain() }
+            Resource.Success(list)
+
+        } catch (e: UnknownHostException) {
+            Resource.Error("Sin conexión a internet")
+        } catch (e: SocketTimeoutException) {
+            Resource.Error("Tiempo de espera agotado")
+        } catch (e: IOException) {
+            Resource.Error("Error de red: ${e.localizedMessage}")
+        } catch (e: HttpException) {
+            Resource.Error("Error ${e.code()}: ${e.message()}")
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Error desconocido")
+        }
+    }
+
+    /**  Cambia el campo 'approved' de un usuario  */
+    suspend fun setUserApproved(id: String, approved: Boolean): Resource<User> =
+        withContext(Dispatchers.IO) {
+            try {
+                val dto = api.updateUserStatus(id, ApproveRequest(approved))
+                Resource.Success(dto.toDomain())
+            } catch (e: HttpException) {
+                Resource.Error("Error ${e.code()}: ${e.message()}")
+            } catch (e: IOException) {
+                Resource.Error("Error de red")
+            } catch (e: Exception) {
+                Resource.Error(e.localizedMessage ?: "Error desconocido")
+            }
+        }
 }

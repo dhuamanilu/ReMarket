@@ -35,7 +35,7 @@ class AdminPendingProductsViewModel @Inject constructor(
         firebaseAuth.signOut()
         tokenManager.clearToken()
     }
-    private fun load() = viewModelScope.launch {
+    fun load() = viewModelScope.launch {
         repo.getPendingProductsFromFirebase().collect { res ->
             when (res) {
                 is Resource.Loading -> _state.update { it.copy(isLoading = true) }

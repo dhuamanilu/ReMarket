@@ -1,6 +1,7 @@
 // ui/navigation/AppNavGraph.kt
 package com.example.remarket.ui.navigation
 
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
@@ -13,6 +14,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.example.remarket.ui.admin.AdminPendingProductsScreen
 import com.example.remarket.ui.admin.AdminProductDetailScreen
@@ -38,6 +41,12 @@ import com.example.remarket.ui.profile.ProfileScreen
 import com.example.remarket.ui.profile.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.example.remarket.ui.admin.AdminPendingProductsViewModel
+import com.example.remarket.ui.admin.review.AdminReviewStep1Screen
+import com.example.remarket.ui.admin.review.AdminReviewStep2Screen
+import com.example.remarket.ui.admin.review.AdminReviewViewModel
+import com.example.remarket.ui.admin.user.AdminPendingUsersScreen
+import com.example.remarket.ui.admin.user.AdminPendingUsersViewModel
+import com.example.remarket.ui.admin.user.AdminUserDetailScreen
 import com.example.remarket.ui.chat.ChatListScreen // <-- AÑADE
 import com.example.remarket.ui.chat.ChatScreen // <-- AÑADE
 // Definición de rutas centralizada y clara
@@ -62,6 +71,12 @@ object Routes {
     const val REPORTS        = "reports"       // ← NUEVA
     const val CHATS = "chats" // <-- AÑADE ESTA LÍNEA
     const val CHAT_DETAIL = "chats/{chatId}" // <-- AÑADE ESTA LÍNEA
+    // ⬇️ Agrega justo debajo de CHAT_DETAIL
+    const val ADMIN_REVIEW_FLOW = "admin_review_flow/{productId}"
+    const val ADMIN_REV_STEP1  = "admin_rev_step1"
+    const val ADMIN_REV_STEP2  = "admin_rev_step2"
+    const val ADMIN_USERS       = "admin_users"
+    const val ADMIN_USER_DETAIL = "admin_user_detail/{userId}"
 }
 
 @Composable
@@ -92,13 +107,17 @@ fun AppNavGraph(
                     when (event) {
                         is NavigationEvent.NavigateToHome -> {
                             navController.navigate(Routes.HOME) {
-                                popUpTo(Routes.LOGIN) { inclusive = true }
+                                // 🔸 vacía TODA la pila, incluido el RootScreen
+                                popUpTo(0)          // id 0 ⇒ raíz del NavHost
+                                launchSingleTop = true
                             }
                             loginViewModel.clearNavigationEvent()
                         }
                         is NavigationEvent.NavigateToAdmin -> {
                             navController.navigate(Routes.ADMIN_HOME) {
-                                popUpTo(Routes.LOGIN) { inclusive = true }
+                                // 🔸 vacía TODA la pila, incluido el RootScreen
+                                popUpTo(0)          // id 0 ⇒ raíz del NavHost
+                                launchSingleTop = true
                             }
                             loginViewModel.clearNavigationEvent()
                         }
@@ -168,7 +187,30 @@ fun AppNavGraph(
                 )
             }
         }
+        // ---- Lista de usuarios por aprobar ----
+        composable(Routes.ADMIN_USERS) {
+            val vm: AdminPendingUsersViewModel = hiltViewModel()
+            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = true, firebaseAuth) }) { padd ->
+                AdminPendingUsersScreen(
+                    vm = vm,
+                    onUserClick = { id ->
+                        navController.navigate(Routes.ADMIN_USER_DETAIL.replace("{userId}", id))
+                    },
+                    onLogout = {
+                        vm.onLogout()
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(0); launchSingleTop = true
+                        }
+                    }
+                )
+            }
+        }
 
+// ---- Detalle de usuario ----
+        composable(Routes.ADMIN_USER_DETAIL) { backStack ->
+            val id = backStack.arguments?.getString("userId") ?: ""
+            AdminUserDetailScreen(userId = id, onBack = { navController.popBackStack() })
+        }
         composable(Routes.HOME) {
             val vm: HomeViewModel = hiltViewModel()
             val ui by vm.uiState.collectAsState()
@@ -192,7 +234,9 @@ fun AppNavGraph(
                     onLogout = {
                         vm.onLogout()
                         navController.navigate(Routes.LOGIN) {
-                            popUpTo(Routes.HOME) { inclusive = true }
+                            // ⬇️ esto borra absolutamente TODO el back-stack
+                            popUpTo(0)            // 0 es el root del NavHost
+                            launchSingleTop = true
                         }
                     }
                 )
@@ -301,27 +345,61 @@ fun AppNavGraph(
             Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = true, firebaseAuth = firebaseAuth) }) { padd ->
                 AdminPendingProductsScreen(
                     vm = vm,
+                    navController = navController,
                     onProductClick = { id ->
+                        Log.d("NAV", "→ ReviewFlow con id=$id")
                         navController.navigate(
-                            Routes.ADMIN_PRODUCT_DETAIL.replace("{productId}", id)
+                            Routes.ADMIN_REVIEW_FLOW.replace("{productId}", id)
                         )
                     },
                     onLogout = {
                         vm.onLogout()
                         navController.navigate(Routes.LOGIN) {
-                            popUpTo(Routes.ADMIN_HOME) { inclusive = true }
+                            popUpTo(0)            // 0 es el root del NavHost
+                            launchSingleTop = true
                         }
                     }
                 )
             }
         }
-
+        // Flujo de revisión de productos (admin)
         composable(Routes.ADMIN_PRODUCT_DETAIL) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             AdminProductDetailScreen(
                 productId = productId,
                 onBack    = { navController.popBackStack() }
             )
+        }
+        // ░░░░░  FLUJO DE REVISIÓN DE PRODUCTO (solo-lectura)  ░░░░░
+        navigation(
+            startDestination = Routes.ADMIN_REV_STEP1,
+            route = Routes.ADMIN_REVIEW_FLOW
+        ) {
+            // Paso 1 – campos de texto
+            composable(
+                Routes.ADMIN_REV_STEP1,) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Routes.ADMIN_REVIEW_FLOW)
+                }
+                val productId = parentEntry.arguments?.getString("productId")!!
+                val vm: AdminReviewViewModel = hiltViewModel(parentEntry)   //  ← usa vm único
+                LaunchedEffect(Unit) { vm.load(productId) }
+
+                AdminReviewStep1Screen(
+                    viewModel = vm,
+                    onNext = { navController.navigate(Routes.ADMIN_REV_STEP2) }
+                )
+            }
+
+            // Paso 2 – imágenes
+            composable(
+                Routes.ADMIN_REV_STEP2
+            ) { val parentEntry = remember(it) {
+                navController.getBackStackEntry(Routes.ADMIN_REVIEW_FLOW)
+            }
+                val vm: AdminReviewViewModel = hiltViewModel(parentEntry)
+                AdminReviewStep2Screen(vm,navController)
+            }
         }
 
         composable(Routes.FORGOT_PASSWORD) {
@@ -342,6 +420,7 @@ fun AppNavGraph(
         }
     }
 }
+
 
 @Composable
 private fun ProductCreateFlow(navController: NavHostController, productIdForEdit: String? = null) {
@@ -409,11 +488,12 @@ fun RootScreen(navController: NavHostController, viewModel: RootViewModel = hilt
             is NavigationTarget.Loading -> null // Aún no hay destino
         }
 
-        destination?.let {
-            navController.navigate(it) {
-                // Limpiamos la pila de navegación para que el usuario no pueda
-                // volver a esta pantalla de enrutamiento con el botón 'atrás'.
-                popUpTo(Routes.ROOT) { inclusive = true }
+        destination?.let { dest ->
+            navController.navigate(dest) {
+                // 🔸 ESTA es la única línea que cambias
+                popUpTo(0)          // ← elimina todo el back-stack
+
+                launchSingleTop = true   // (opcional, evita duplicados)
             }
         }
     }

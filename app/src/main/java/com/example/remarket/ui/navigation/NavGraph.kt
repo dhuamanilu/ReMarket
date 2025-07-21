@@ -19,7 +19,6 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.example.remarket.ui.admin.AdminPendingProductsScreen
 import com.example.remarket.ui.admin.AdminProductDetailScreen
-import com.example.remarket.ui.admin.ManageReportsScreen
 import com.example.remarket.ui.auth.login.LoginScreen
 import com.example.remarket.ui.auth.login.LoginViewModel
 import com.example.remarket.ui.auth.login.NavigationEvent
@@ -41,6 +40,8 @@ import com.example.remarket.ui.profile.ProfileScreen
 import com.example.remarket.ui.profile.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.example.remarket.ui.admin.AdminPendingProductsViewModel
+import com.example.remarket.ui.admin.reports.ManageReportsScreen
+import com.example.remarket.ui.admin.reports.ManageReportsViewModel
 import com.example.remarket.ui.admin.review.AdminReviewStep1Screen
 import com.example.remarket.ui.admin.review.AdminReviewStep2Screen
 import com.example.remarket.ui.admin.review.AdminReviewViewModel
@@ -303,10 +304,24 @@ fun AppNavGraph(
 
         // --- Reportes (admin) ---
         composable(Routes.ADMIN_REPORTS) {
-            Scaffold(bottomBar = { BottomNavigationBar(navController, isAdmin = true, firebaseAuth = firebaseAuth) }) { padd ->
-                ManageReportsScreen()                 // ya existe como stub
+            val vm: ManageReportsViewModel = hiltViewModel()
+
+            Scaffold(
+                bottomBar = { BottomNavigationBar(navController, isAdmin = true, firebaseAuth = firebaseAuth) }
+            ) { padd ->
+                ManageReportsScreen(
+                    viewModel = vm,
+                    paddingValues = padd,
+                    onNavigateToProduct = { id ->
+                        // ⬇️  Usa la ruta de detalle ya existente
+                        navController.navigate(
+                            Routes.PRODUCT_DETAIL.replace("{productId}", id)
+                        )
+                    }
+                )
             }
         }
+
 
         // Detalle de producto
         composable(Routes.PRODUCT_DETAIL) {
@@ -504,13 +519,6 @@ fun RootScreen(navController: NavHostController, viewModel: RootViewModel = hilt
     // Muestra un indicador de carga en pantalla completa mientras se decide el destino
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         androidx.compose.material3.CircularProgressIndicator()
-    }
-}
-
-@Composable
-fun ManageReportsScreen() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Pantalla de Reportes (Admin) - TODO")
     }
 }
 

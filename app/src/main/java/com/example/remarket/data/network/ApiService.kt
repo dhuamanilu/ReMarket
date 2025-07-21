@@ -11,6 +11,7 @@ import com.example.remarket.data.model.ProductDto
 import com.example.remarket.data.model.UserDto
 import com.example.remarket.data.model.RegisterResponse
 import com.example.remarket.data.model.Chat // <-- AÑADE ESTE IMPORT
+import com.example.remarket.data.model.ReportDto
 import com.example.remarket.data.network.StartChatRequest // <-- AÑADE ESTE IMPORT
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -31,6 +32,15 @@ interface ApiService {
     suspend fun getProductById(
         @Path("productId") productId: String
     ): ProductDto
+
+    @GET("reports")
+    suspend fun getReports(): List<ReportDto>
+
+    @GET("reports/{reportId}")
+    suspend fun getReportById(@Path("reportId") reportId: String): ReportDto
+
+    @DELETE("reports/{reportId}")
+    suspend fun deleteReport(@Path("reportId") reportId: String): Response<Unit>
 
     @POST("saved")
     suspend fun saveProduct(@Body request: SaveRequest): Response<Unit>

@@ -48,6 +48,15 @@ fun ProductDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val chatState by viewModel.chatState.collectAsState()
+    val snackbarHost = remember { SnackbarHostState() }
+    val ui by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(ui.reportMessage) {
+        ui.reportMessage?.let {
+            snackbarHost.showSnackbar(it)
+            viewModel.clearReportMessage()
+        }
+    }
 
     LaunchedEffect(productId) {
         viewModel.loadProduct(productId)
@@ -90,6 +99,8 @@ fun ProductDetailScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHost) },
+
         topBar = {
             TopAppBar(
                 title = { Text("Detalle del Producto") },

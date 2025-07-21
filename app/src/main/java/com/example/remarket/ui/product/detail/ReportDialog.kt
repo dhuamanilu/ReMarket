@@ -3,6 +3,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -20,13 +21,9 @@ fun ReportDialog(
     onReport: (String) -> Unit
 ) {
     var selectedReason by remember { mutableStateOf("") }
-    val reasons = listOf(
-        "Contenido inapropiado",
-        "Producto falso",
-        "Precio sospechoso",
-        "Descripción engañosa",
-        "Otro"
-    )
+    var customComment  by remember { mutableStateOf("") }        // ⬅️ nuevo state
+    val reasons = listOf("Contenido inapropiado","Producto falso",
+        "Precio sospechoso","Descripción engañosa","Otro")
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -34,47 +31,53 @@ fun ReportDialog(
         text = {
             Column {
                 Text("Selecciona la razón del reporte:")
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
+
                 reasons.forEach { reason ->
                     Row(
-                        Modifier
-                            .fillMaxWidth()
+                        Modifier.fillMaxWidth()
                             .selectable(
-                                selected = (reason == selectedReason),
+                                selected = reason == selectedReason,
                                 onClick = { selectedReason = reason }
                             )
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
-                            selected = (reason == selectedReason),
+                            selected = reason == selectedReason,
                             onClick = { selectedReason = reason }
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text(reason)
                     }
+                }
+
+                // ⬇️ Si elige “Otro”, aparece un campo para escribir
+                if (selectedReason == "Otro") {
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = customComment,
+                        onValueChange = { customComment = it },
+                        label = { Text("Describe el problema") },
+                        singleLine = false,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         },
         confirmButton = {
             if (isReporting) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                CircularProgressIndicator(Modifier.size(24.dp))
             } else {
+                val finalReason = if (selectedReason == "Otro") customComment else selectedReason
                 TextButton(
-                    onClick = { onReport(selectedReason) },
-                    enabled = selectedReason.isNotEmpty()
-                ) {
-                    Text("Reportar")
-                }
+                    onClick = { onReport(finalReason) },
+                    enabled = finalReason.isNotBlank()
+                ) { Text("Reportar") }
             }
         },
         dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                enabled = !isReporting
-            ) {
-                Text("Cancelar")
-            }
+            TextButton(onClick = onDismiss, enabled = !isReporting) { Text("Cancelar") }
         }
     )
 }

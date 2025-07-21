@@ -22,7 +22,6 @@ import com.example.remarket.data.model.Chat // <-- AÑADE IMPORT
 import com.example.remarket.data.network.ApiService
 import kotlinx.coroutines.Dispatchers
 
-
 // El Data Class no necesita cambios
 data class ProductDetailUiState(
     val product: Product? = null,
@@ -35,7 +34,9 @@ data class ProductDetailUiState(
     val reportSuccess: Boolean = false,
     val isOwner: Boolean = false,
     val showDeleteConfirmDialog: Boolean = false,
-    val deleteMessage: String? = null
+    val deleteMessage: String? = null,
+    val reportMessage: String? = null
+
 )
 
 @HiltViewModel
@@ -193,19 +194,21 @@ class ProductDetailViewModel @Inject constructor(
 
     fun reportProduct(reason: String) {
         val productId = _uiState.value.product?.id ?: return
+
         viewModelScope.launch {
-            _uiState.update { it.copy(isReporting = true) }
-            productRepository.reportProduct(productId, reason).collect { success ->
-                _uiState.update {
-                    it.copy(
-                        isReporting = false,
-                        reportSuccess = success,
-                        showReportDialog = !success
-                    )
+            productRepository.reportProduct(productId, reason).collect { res ->
+                when (res) {
+                    is Resource.Loading  -> _uiState.update { it.copy(isReporting = true , reportMessage = null) }
+                    is Resource.Success  -> _uiState.update { it.copy(isReporting = false, reportMessage = "Reporte enviado") }
+                    is Resource.Error    -> _uiState.update { it.copy(isReporting = false, reportMessage = res.message) }
+                    Resource.Idle -> TODO()
                 }
             }
         }
     }
+
+    fun clearReportMessage() = _uiState.update { it.copy(reportMessage = null) }
+
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }

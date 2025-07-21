@@ -315,15 +315,25 @@ class ProductRepository @Inject constructor(
         TODO("Not yet implemented")
     }
 
-    override suspend fun reportProduct(productId: String, reason: String): Flow<Boolean> = flow {
+    override suspend fun reportProduct(
+        productId: String,
+        reason: String
+    ): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading)
         try {
-            // Realiza POST /reports
-            val response = api.createReport(ReportRequest(productId, reason))
-            emit(response.isSuccessful)
+            val resp = api.createReport(ReportRequest(productId, reason))
+            when {
+                resp.isSuccessful                   -> emit(Resource.Success(Unit))
+                resp.code() == 409                  -> emit(Resource.Error("Ya has reportado este producto"))
+                else                                -> emit(Resource.Error("Error ${resp.code()} al reportar"))
+            }
         } catch (e: HttpException) {
-            emit(false)
+            if (e.code() == 409)
+                emit(Resource.Error("Ya has reportado este producto"))
+            else
+                emit(Resource.Error("Error ${e.code()} de servidor"))
         } catch (e: IOException) {
-            emit(false)
+            emit(Resource.Error("Sin conexión a Internet"))
         }
     }.flowOn(Dispatchers.IO)
 

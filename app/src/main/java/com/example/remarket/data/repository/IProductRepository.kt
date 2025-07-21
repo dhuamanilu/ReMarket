@@ -17,7 +17,7 @@ interface IProductRepository {
     suspend fun deleteProduct(productId: String): Resource<Unit>
     suspend fun getProductById(productId: String): Flow<Resource<Product>>
     suspend fun toggleFavorite(productId: String): Flow<Boolean>
-    suspend fun reportProduct(productId: String, reason: String): Flow<Boolean>
+    suspend fun reportProduct(productId: String, reason: String): Flow<Resource<Unit>>
     suspend fun syncOfflineCreations(): Boolean
     fun triggerOfflineSync()
     fun getPendingProducts(): Flow<Resource<List<Product>>>

@@ -25,6 +25,9 @@ interface IProductRepository {
     fun getPendingProductsFromFirebase(): Flow<Resource<List<Product>>>
     suspend fun getProductByIdFromFirebase(id: String): Resource<Product>
     fun getMyProducts(): Flow<Resource<List<Product>>>
+    suspend fun purchaseProduct(productId: String): Flow<Resource<Unit>>
+    fun getMyPurchases(): Flow<Resource<List<Product>>>
+    suspend fun markProductSold(productId: String): Resource<Product>
 
 
 }

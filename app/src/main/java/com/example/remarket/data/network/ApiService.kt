@@ -12,6 +12,7 @@ import com.example.remarket.data.model.UserDto
 import com.example.remarket.data.model.RegisterResponse
 import com.example.remarket.data.model.Chat // <-- AÑADE ESTE IMPORT
 import com.example.remarket.data.model.ReportDto
+import com.example.remarket.data.model.TransactionDto
 import com.example.remarket.data.network.StartChatRequest // <-- AÑADE ESTE IMPORT
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -30,6 +31,11 @@ interface ApiService {
 
     @GET("products/{productId}")
     suspend fun getProductById(
+        @Path("productId") productId: String
+    ): ProductDto
+
+    @POST("products/{productId}/purchase")
+    suspend fun markProductSold(
         @Path("productId") productId: String
     ): ProductDto
 
@@ -76,5 +82,11 @@ interface ApiService {
         @Path("userId") userId: String,
         @Body request: ApproveRequest
     ): UserDto
+    // Lista “Mis compras” (status reserved | sold)  ➌
+    @GET("products/my-purchases")
+    suspend fun getMyPurchases(): List<ProductDto>
 
+    // Inicia transacción (reserva) – comprador  ➍
+    @POST("transactions")
+    suspend fun createTransaction(@Body request: TransactionRequest): TransactionDto
 }

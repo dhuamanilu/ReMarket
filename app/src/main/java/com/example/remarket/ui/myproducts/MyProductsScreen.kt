@@ -20,7 +20,11 @@ import coil.compose.AsyncImage
 import com.example.remarket.data.model.Product
 
 @Composable
-fun MyProductsScreen(uiState: MyProductsViewModel.UiState, paddingValues: PaddingValues, onNavigateToProductDetail: (String) -> Unit) {
+fun MyProductsScreen(
+    uiState: MyProductsViewModel.UiState,
+    paddingValues: PaddingValues,
+    onNavigateToProductDetail: (String) -> Unit
+) {
     when {
         uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
@@ -34,11 +38,46 @@ fun MyProductsScreen(uiState: MyProductsViewModel.UiState, paddingValues: Paddin
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(uiState.products) { p -> ProductRow(p,onNavigateToProductDetail) }
+            // ▸ Sección de productos comprados
+            if (uiState.bought.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Comprados",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+                    )
+                }
+                items(uiState.bought) { p ->
+                    ProductRow(p, onNavigateToProductDetail)
+                }
+                item { Spacer(Modifier.height(24.dp)) }
+            }
+
+            // ▸ Sección de productos en venta
+            if (uiState.products.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "En venta",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+                    )
+                }
+                items(uiState.products) { p ->
+                    ProductRow(p, onNavigateToProductDetail)
+                }
+            }
+
+            // ▸ Mensaje si no hay nada
+            if (uiState.bought.isEmpty() && uiState.products.isEmpty()) {
+                item {
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text("No tienes productos para mostrar")
+                    }
+                }
+            }
         }
     }
 }
-
 
 @Composable
 private fun ProductRow(p: Product,onNavigateToProductDetail: (String) -> Unit) {
@@ -114,6 +153,16 @@ private fun StatusChip(status: String) {
             MaterialTheme.colorScheme.errorContainer,
             MaterialTheme.colorScheme.onErrorContainer
         )
+        "RESERVED" -> Triple(
+            "Reservado",
+            MaterialTheme.colorScheme.secondaryContainer,
+            MaterialTheme.colorScheme.onSecondaryContainer
+        )
+        "SOLD" -> Triple(
+            "Comprado",
+            MaterialTheme.colorScheme.primaryContainer,
+            MaterialTheme.colorScheme.onPrimaryContainer
+        )
         else -> Triple(
             status,
             MaterialTheme.colorScheme.surfaceVariant,
@@ -136,4 +185,3 @@ private fun StatusChip(status: String) {
         )
     }
 }
-

@@ -35,8 +35,8 @@ data class ProductDetailUiState(
     val isOwner: Boolean = false,
     val showDeleteConfirmDialog: Boolean = false,
     val deleteMessage: String? = null,
-    val reportMessage: String? = null
-
+    val reportMessage: String? = null,
+    val saleConfirmMsg: String? = null
 )
 
 @HiltViewModel
@@ -44,8 +44,7 @@ class ProductDetailViewModel @Inject constructor(
     private val productRepository: IProductRepository,
     private val userRepo: UserRepository,
     private val firebaseAuth: FirebaseAuth, // Se inyecta FirebaseAuth
-    private val apiService: ApiService // <-- INYECTA EL APISERVICE
-
+    private val apiService: ApiService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProductDetailUiState())
@@ -146,8 +145,6 @@ class ProductDetailViewModel @Inject constructor(
         }
     }
 
-    // --- EL RESTO DE FUNCIONES NO NECESITA CAMBIOS ---
-
     fun onDeleteClicked() {
         _uiState.update { it.copy(showDeleteConfirmDialog = true, deleteMessage = null) }
     }
@@ -209,6 +206,23 @@ class ProductDetailViewModel @Inject constructor(
 
     fun clearReportMessage() = _uiState.update { it.copy(reportMessage = null) }
 
+    fun confirmSale() {
+        val pid = _uiState.value.product?.id ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(saleConfirmMsg = null) }
+            when (val res = productRepository.markProductSold(pid)) {
+                is Resource.Success -> _uiState.update {
+                    it.copy(product = res.data, saleConfirmMsg = "Venta confirmada")
+                }
+                is Resource.Error   -> _uiState.update {
+                    it.copy(saleConfirmMsg = res.message)
+                }
+                else -> {}
+            }
+        }
+    }
+
+    fun clearSaleMsg() = _uiState.update { it.copy(saleConfirmMsg = null) }
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }

@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.map
 import java.util.concurrent.TimeUnit
 import com.example.remarket.data.worker.SyncWorker
 import androidx.work.*
+import com.example.remarket.data.network.TransactionRequest
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
@@ -519,7 +520,44 @@ class ProductRepository @Inject constructor(
         Resource.Error("Error Firestore: ${e.message}")
     }
 
+    override suspend fun purchaseProduct(productId: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading)
+        try {
+            api.createTransaction(TransactionRequest(productId))
+            emit(Resource.Success(Unit))          // éxito ⇒ reservar hecho
+        } catch (e: HttpException) {
+            emit(Resource.Error("No se pudo completar la compra: ${e.message()}"))
+        } catch (e: IOException) {
+            emit(Resource.Error("Sin conexión"))
+        }
+    }.flowOn(Dispatchers.IO)
 
+    override fun getMyPurchases(): Flow<Resource<List<Product>>> = flow {
+        emit(Resource.Loading)
+        try {
+            val list = api.getMyPurchases().map { it.toDomain() }
+            emit(Resource.Success(list))
+        } catch (e: Exception) {
+            emit(Resource.Error("Error al obtener compras"))
+        }
+    }.flowOn(Dispatchers.IO)
 
+    override suspend fun markProductSold(productId: String): Resource<Product> =
+        withContext(Dispatchers.IO) {
+            if (!connectivityRepository.isNetworkAvailable()) {
+                return@withContext Resource.Error("Se requiere conexión para confirmar venta")
+            }
+            return@withContext try {
+                // Llama al endpoint
+                val dto = api.markProductSold(productId)
+                // Actualiza local
+                dao.insert(dto.toEntity())
+                Resource.Success(dto.toDomain())
+            } catch (e: HttpException) {
+                Resource.Error("Error ${e.code()} al confirmar venta")
+            } catch (e: IOException) {
+                Resource.Error("Sin conexión")
+            }
+        }
 
 }

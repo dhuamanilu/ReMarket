@@ -50,6 +50,8 @@ import com.example.remarket.ui.admin.user.AdminPendingUsersViewModel
 import com.example.remarket.ui.admin.user.AdminUserDetailScreen
 import com.example.remarket.ui.chat.ChatListScreen // <-- AÑADE
 import com.example.remarket.ui.chat.ChatScreen // <-- AÑADE
+import com.example.remarket.ui.purchase.PurchaseScreen
+
 // Definición de rutas centralizada y clara
 object Routes {
     const val ROOT = "root" // <-- AÑADIDO
@@ -424,14 +426,16 @@ fun AppNavGraph(
             ForgotPasswordScreen(onNavigateBack = { navController.popBackStack() })
         }
 
-        composable(Routes.PURCHASE) { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+        // Reemplaza únicamente el composable de PURCHASE:
+
+        composable(Routes.PURCHASE) { back ->
+            val productId = back.arguments?.getString("productId") ?: ""
             PurchaseScreen(
                 productId = productId,
-                onNavigateBack = { navController.popBackStack() },
+                onBack = { navController.popBackStack() },
                 onPurchaseComplete = {
                     navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.PURCHASE.replace("{productId}", productId)) { inclusive = true }
+                        popUpTo(Routes.HOME) { inclusive = true }
                     }
                 }
             )
@@ -527,16 +531,5 @@ fun RootScreen(navController: NavHostController, viewModel: RootViewModel = hilt
 fun ForgotPasswordScreen(onNavigateBack: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text("Pantalla de Olvidé Contraseña - TODO")
-    }
-}
-
-@Composable
-fun PurchaseScreen(
-    productId: String,
-    onNavigateBack: () -> Unit,
-    onPurchaseComplete: () -> Unit
-) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Pantalla de Compra para producto $productId - TODO")
     }
 }

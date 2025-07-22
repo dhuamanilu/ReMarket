@@ -2,10 +2,7 @@
 package com.example.remarket.ui.product.detail
 
 import ReportDialog
-import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -19,22 +16,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
-import com.example.remarket.data.model.Product
-import com.example.remarket.util.Resource
 import coil.compose.AsyncImage
 import com.example.remarket.data.model.Chat
-
+import com.example.remarket.data.model.Product
+import com.example.remarket.util.Resource
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,20 +40,32 @@ fun ProductDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val chatState by viewModel.chatState.collectAsState()
-    val snackbarHost = remember { SnackbarHostState() }
-    val ui by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val auth = FirebaseAuth.getInstance()
 
-    LaunchedEffect(ui.reportMessage) {
-        ui.reportMessage?.let {
-            snackbarHost.showSnackbar(it)
+    // Estado local para mostrar el diálogo de confirmación de venta
+    var showSaleDialog by remember { mutableStateOf(false) }
+
+    // Mostrar Snackbars
+    LaunchedEffect(uiState.saleConfirmMsg) {
+        uiState.saleConfirmMsg?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSaleMsg()
+        }
+    }
+    LaunchedEffect(uiState.reportMessage) {
+        uiState.reportMessage?.let {
+            snackbarHostState.showSnackbar(it)
             viewModel.clearReportMessage()
         }
     }
 
+    // Cargar producto al iniciar
     LaunchedEffect(productId) {
         viewModel.loadProduct(productId)
     }
 
+    // Navegar al chat si chatState es éxito
     LaunchedEffect(chatState) {
         if (chatState is Resource.Success) {
             val chatId = (chatState as Resource.Success<Chat>).data.id
@@ -72,14 +76,14 @@ fun ProductDetailScreen(
         }
     }
 
+    // Volver tras eliminación
     LaunchedEffect(uiState.deleteMessage) {
-        uiState.deleteMessage?.let {
-            if (it == "Producto eliminado.") {
-                onNavigateBack()
-            }
+        if (uiState.deleteMessage == "Producto eliminado.") {
+            onNavigateBack()
         }
     }
 
+    // Diálogo de confirmación de borrado
     if (uiState.showDeleteConfirmDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.onDismissDeleteDialog() },
@@ -87,7 +91,7 @@ fun ProductDetailScreen(
             text = { Text("¿Estás seguro de que quieres eliminar este producto? Esta acción no se puede deshacer.") },
             confirmButton = {
                 TextButton(onClick = { viewModel.onConfirmDelete() }) {
-                    Text("Eliminar", color = Color.Red)
+                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -99,8 +103,6 @@ fun ProductDetailScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHost) },
-
         topBar = {
             TopAppBar(
                 title = { Text("Detalle del Producto") },
@@ -115,9 +117,30 @@ fun ProductDetailScreen(
                     }
                 }
             )
-        }
+        },
+        floatingActionButton = {
+            // FAB pequeño para “Marcar como vendido”
+            if (uiState.isOwner && uiState.product?.status == "reserved") {
+                FloatingActionButton(
+                    onClick = { showSaleDialog = true },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Marcar como vendido",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
+        Box(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
             when {
                 uiState.isLoading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -125,13 +148,12 @@ fun ProductDetailScreen(
                     }
                 }
                 uiState.error != null -> {
-                    ErrorSection(message = uiState.error!!, onRetry = { viewModel.loadProduct(productId) })
+                    ErrorSection(
+                        message = uiState.error!!,
+                        onRetry = { viewModel.loadProduct(productId) }
+                    )
                 }
                 else -> {
-                    // --- INICIO DE LA CORRECCIÓN DEFINITIVA ---
-                    // Usamos '?.let'. Este bloque de código SOLO se ejecutará
-                    // si 'uiState.product' NO es nulo. Dentro del bloque,
-                    // 'product' es una variable garantizada como no nula.
                     uiState.product?.let { product ->
                         ProductDetailContent(
                             product = product,
@@ -143,7 +165,6 @@ fun ProductDetailScreen(
                             onContactSeller = { viewModel.onContactSellerClicked(product.id) }
                         )
                     }
-                    // --- FIN DE LA CORRECCIÓN DEFINITIVA ---
                 }
             }
 
@@ -166,6 +187,28 @@ fun ProductDetailScreen(
                     }
                 )
             }
+
+            // Diálogo de confirmación de venta
+            if (showSaleDialog) {
+                AlertDialog(
+                    onDismissRequest = { showSaleDialog = false },
+                    title = { Text("Confirmar Venta") },
+                    text = { Text("¿Estás seguro de que quieres marcar este producto como vendido?") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            viewModel.confirmSale()
+                            showSaleDialog = false
+                        }) {
+                            Text("Sí")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showSaleDialog = false }) {
+                            Text("No")
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -184,7 +227,7 @@ private fun ProductDetailContent(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 16.dp)
+            .padding(bottom = 80.dp)  // deja espacio para la FAB
     ) {
         LazyRow(
             modifier = Modifier
@@ -199,7 +242,7 @@ private fun ProductDetailContent(
                     modifier = Modifier
                         .fillParentMaxHeight()
                         .aspectRatio(1f)
-                        .padding(horizontal = 4.dp)
+                        .padding(4.dp)
                         .clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Crop
                 )
@@ -226,31 +269,27 @@ private fun ProductDetailContent(
         Divider(modifier = Modifier.padding(vertical = 16.dp, horizontal = 16.dp))
 
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-            DetailRow(icon = Icons.Default.Info, label = "Descripción", value = product.description)
-            DetailRow(icon = Icons.Default.Person, label = "Vendedor", value = sellerName ?: "Cargando...")
-            DetailRow(icon = Icons.Default.Inventory, label = "Incluye caja", value = if (product.box.isNotBlank()) "Sí" else "No")
+            DetailRow(Icons.Default.Info, "Descripción", product.description)
+            DetailRow(Icons.Default.Person, "Vendedor", sellerName ?: "Cargando...")
+            DetailRow(Icons.Default.Inventory, "Incluye caja",
+                if (product.box.isNotBlank()) "Sí" else "No"
+            )
         }
 
         Spacer(Modifier.weight(1f))
 
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (isOwner) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = onEditClick,
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    Button(onClick = onEditClick, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Default.Edit, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text("Editar")
                     }
-                    OutlinedButton(
-                        onClick = onDeleteClick,
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    OutlinedButton(onClick = onDeleteClick, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                         Spacer(Modifier.width(8.dp))
                         Text("Eliminar", color = MaterialTheme.colorScheme.error)
@@ -288,12 +327,7 @@ private fun DetailRow(icon: ImageVector, label: String, value: String) {
         modifier = Modifier.padding(vertical = 8.dp),
         verticalAlignment = Alignment.Top
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(top = 4.dp)
-        )
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(16.dp))
         Column {
             Text(label, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
@@ -311,9 +345,9 @@ private fun ErrorSection(message: String, onRetry: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(48.dp))
+        Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
         Spacer(Modifier.height(16.dp))
-        Text(text = message, color = Color.Red, textAlign = TextAlign.Center)
+        Text(text = message, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
         Spacer(Modifier.height(16.dp))
         Button(onClick = onRetry) {
             Text("Reintentar")

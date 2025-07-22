@@ -1,4 +1,3 @@
-// Register2Screen.kt
 package com.example.remarket.ui.auth.register
 
 import androidx.compose.foundation.background
@@ -10,12 +9,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MobileFriendly
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -33,7 +34,6 @@ fun Register2Screen(
     onRegister: () -> Unit,
     viewModel: RegisterViewModel = hiltViewModel()
 ) {
-    // La lógica de negocio y estado se mantiene intacta
     val scrollState = rememberScrollState()
     val uiState by viewModel.uiState.collectAsState()
     val email by viewModel.email.collectAsState()
@@ -42,42 +42,36 @@ fun Register2Screen(
     val dniFrontUri by viewModel.dniFrontImageUri.collectAsState()
     val dniBackUri by viewModel.dniBackImageUri.collectAsState()
 
-    // Los diálogos de éxito y error se mantienen igual, ya que son modales sobre la UI
+    // Diálogos de éxito y error sin cambios
     if (uiState.isRegistrationSuccessful) {
         AlertDialog(
-            onDismissRequest = { /* No permitir cerrar */ },
+            onDismissRequest = {},
             title = { Text("¡Registro Exitoso!") },
             text = { Text("Tu cuenta ha sido creada. Serás redirigido para iniciar sesión.") },
             confirmButton = {
-                TextButton(onClick = onRegister) {
-                    Text("Aceptar")
-                }
+                TextButton(onClick = onRegister) { Text("Aceptar") }
             }
         )
     }
-
-    uiState.errorMessage?.let { errorMessage ->
+    uiState.errorMessage?.let { msg ->
         AlertDialog(
             onDismissRequest = { viewModel.clearErrorMessage() },
             title = { Text("Error en el Registro") },
-            text = { Text(errorMessage) },
+            text = { Text(msg) },
             confirmButton = {
-                TextButton(onClick = { viewModel.clearErrorMessage() }) {
-                    Text("Aceptar")
-                }
+                TextButton(onClick = { viewModel.clearErrorMessage() }) { Text("Aceptar") }
             }
         )
     }
 
-    // Contenedor principal con el fondo de gradiente
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF6366F1),
-                        Color(0xFF8B5CF6)
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.primaryContainer
                     )
                 )
             )
@@ -85,173 +79,193 @@ fun Register2Screen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
-                .verticalScroll(scrollState),
+                .verticalScroll(scrollState)
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Cabecera con estilo consistente
             Register2Header()
-            Spacer(Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Selector de imagen frontal DNI
-            Text(
-                text = "Foto Frontal del DNI",
-                color = Color.White,
-                fontSize = 14.sp,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            )
-            Box(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(150.dp)
-                    .background(Color.White, RoundedCornerShape(12.dp)), // Estilo consistente
-                contentAlignment = Alignment.Center
-            ) {
-                // El componente ImagePickerItem se reutiliza sin cambios internos
-                ImagePickerItem(
-                    imageUri = dniFrontUri,
-                    size = 150.dp,
-                    onPick = viewModel::onDniFrontImageSelected
+                    .shadow(8.dp, RoundedCornerShape(16.dp)),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
                 )
-            }
-            Spacer(Modifier.height(16.dp))
-
-            // Selector de imagen trasera DNI
-            Text(
-                text = "Foto Trasera del DNI",
-                color = Color.White,
-                fontSize = 14.sp,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .background(Color.White, RoundedCornerShape(12.dp)), // Estilo consistente
-                contentAlignment = Alignment.Center
             ) {
-                ImagePickerItem(
-                    imageUri = dniBackUri,
-                    size = 150.dp,
-                    onPick = viewModel::onDniBackImageSelected
-                )
-            }
-            Spacer(Modifier.height(24.dp))
-
-            // Campo de Correo
-            Text(
-                text = "Correo electrónico",
-                color = Color.White,
-                fontSize = 14.sp,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            )
-            OutlinedTextField(
-                value = email,
-                onValueChange = viewModel::onEmailChanged,
-                placeholder = { Text("Ingresa tu correo", color = Color.Gray) },
-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Correo") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent
-                ),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                singleLine = true
-            )
-            Spacer(Modifier.height(16.dp))
-
-            // Campo de Contraseña
-            Text(
-                text = "Contraseña",
-                color = Color.White,
-                fontSize = 14.sp,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            )
-            OutlinedTextField(
-                value = password,
-                onValueChange = viewModel::onPasswordChanged,
-                placeholder = { Text("Crea una contraseña", color = Color.Gray) },
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Contraseña") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent
-                ),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true
-            )
-            Spacer(Modifier.height(16.dp))
-
-            // Campo de Confirmar Contraseña
-            Text(
-                text = "Confirmar contraseña",
-                color = Color.White,
-                fontSize = 14.sp,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            )
-            OutlinedTextField(
-                value = confirm,
-                onValueChange = viewModel::onConfirmPasswordChanged,
-                placeholder = { Text("Confirma tu contraseña", color = Color.Gray) },
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Confirmar") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent
-                ),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true
-            )
-            Spacer(Modifier.height(32.dp))
-
-            // Botones de navegación
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Botón Regresar
-                Button(
-                    onClick = onBack,
-                    modifier = Modifier.weight(1f).height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White.copy(alpha = 0.2f),
-                        contentColor = Color.White
+                Column(modifier = Modifier.padding(24.dp)) {
+                    // Foto frontal DNI
+                    Text(
+                        text = "Foto Frontal del DNI",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 14.sp,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                     )
-                ) {
-                    Text("Regresar", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                }
-
-                // Botón Registrarse (con indicador de carga)
-                Button(
-                    onClick = { viewModel.onRegisterClicked() },
-                    enabled = !uiState.isLoading, // Se mantiene la lógica de habilitación
-                    modifier = Modifier.weight(1f).height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color(0xFF6366F1),
-                        disabledContainerColor = Color.White.copy(alpha = 0.5f)
-                    )
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color(0xFF6366F1) // Color del indicador
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                RoundedCornerShape(12.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ImagePickerItem(
+                            imageUri = dniFrontUri,
+                            size = 150.dp,
+                            onPick = viewModel::onDniFrontImageSelected
                         )
-                    } else {
-                        Text("Registrarse", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Foto trasera DNI
+                    Text(
+                        text = "Foto Trasera del DNI",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 14.sp,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                RoundedCornerShape(12.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ImagePickerItem(
+                            imageUri = dniBackUri,
+                            size = 150.dp,
+                            onPick = viewModel::onDniBackImageSelected
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Correo electrónico
+                    Text(
+                        text = "Correo electrónico",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 14.sp,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    )
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = viewModel::onEmailChanged,
+                        placeholder = { Text("Ingresa tu correo", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                            errorBorderColor = MaterialTheme.colorScheme.error
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Contraseña
+                    Text(
+                        text = "Contraseña",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 14.sp,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    )
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = viewModel::onPasswordChanged,
+                        placeholder = { Text("Crea una contraseña", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                            errorBorderColor = MaterialTheme.colorScheme.error
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Confirmar contraseña
+                    Text(
+                        text = "Confirmar contraseña",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 14.sp,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    )
+                    OutlinedTextField(
+                        value = confirm,
+                        onValueChange = viewModel::onConfirmPasswordChanged,
+                        placeholder = { Text("Confirma tu contraseña", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                            errorBorderColor = MaterialTheme.colorScheme.error
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // Botones de navegación
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Button(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
+                            Text("Regresar", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Button(
+                            onClick = { viewModel.onRegisterClicked() },
+                            enabled = !uiState.isLoading,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            )
+                        ) {
+                            if (uiState.isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            } else {
+                                Text("Registrarse", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                     }
                 }
             }
@@ -259,23 +273,24 @@ fun Register2Screen(
     }
 }
 
-
 @Composable
 private fun Register2Header() {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
-                .size(80.dp)
-                .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(40.dp)),
+                .size(100.dp)
+                .background(
+                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
+                    RoundedCornerShape(50.dp)
+                )
+                .shadow(elevation = 8.dp, shape = RoundedCornerShape(50.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Default.Lock, // Icono relevante para seguridad
+                imageVector = Icons.Default.MobileFriendly,
                 contentDescription = "Icono de Seguridad",
-                modifier = Modifier.size(40.dp),
-                tint = Color.White
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onPrimary
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
@@ -283,12 +298,12 @@ private fun Register2Header() {
             text = "Último Paso",
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onPrimary
         )
         Text(
             text = "Verificación y acceso",
             fontSize = 16.sp,
-            color = Color.White.copy(alpha = 0.8f)
+            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
         )
     }
 }

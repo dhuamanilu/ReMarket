@@ -3,6 +3,7 @@ package com.example.remarket.ui.admin.user
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -16,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -23,153 +25,209 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
+import com.example.remarket.util.Resource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminUserDetailScreen(
-    navController: NavHostController,   // ⬅️  nuevo parámetro
+    navController: NavHostController,
     userId: String,
     onBack: () -> Unit,
     vm: AdminUserDetailViewModel = hiltViewModel()
 ) {
-    LaunchedEffect(userId) { vm.load(userId) }
-
+    LaunchedEffect(userId) {
+        vm.load(userId)
+    }
     val ui = vm.state.collectAsState().value
-    val scroll = rememberScrollState()
+    val scrollState = rememberScrollState()
 
     Scaffold(
         topBar = {
             SmallTopAppBar(
                 title = { Text("Detalle de Usuario") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.Person, null) }
-                }
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.smallTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
-        }
-    ) { padd ->
+        },
+        containerColor = MaterialTheme.colorScheme.primary
+    ) { paddingValues ->
         when {
-            ui.isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                CircularProgressIndicator()
+            ui.isLoading -> Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
             }
-            ui.error != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                Text(ui.error)
+            ui.error != null -> Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = ui.error,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
             ui.user != null -> {
                 val u = ui.user
-                // ---------- UI re-usando estilo de registro ----------
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padd)
-                        .verticalScroll(scroll)
                         .background(
                             Brush.verticalGradient(
-                                listOf(Color(0xFF6366F1), Color(0xFF8B5CF6))
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.primaryContainer
+                                )
                             )
                         )
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // IMÁGENES DNI
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.fillMaxWidth()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scrollState)
+                            .padding(paddingValues)
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        AsyncImage(
-                            model = u.dniFrontUrl,
-                            contentDescription = "DNI Frente",
+                        Card(
                             modifier = Modifier
-                                .weight(1f)
-                                .height(160.dp)
-                                .background(Color.White, RoundedCornerShape(12.dp))
-                        )
-                        AsyncImage(
-                            model = u.dniBackUrl,
-                            contentDescription = "DNI Reverso",
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(160.dp)
-                                .background(Color.White, RoundedCornerShape(12.dp))
-                        )
-                    }
-
-                    Spacer(Modifier.height(24.dp))
-
-                    // CAMPOS – mismos colores pero deshabilitados
-                    OutlinedTextField(
-                        value = u.firstName,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Nombres") },
-                        leadingIcon = { Icon(Icons.Default.Person, null) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = DisabledColors()
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = u.lastName,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Apellidos") },
-                        leadingIcon = { Icon(Icons.Default.Person, null) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = DisabledColors()
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = u.email,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Correo") },
-                        leadingIcon = { Icon(Icons.Default.Email, null) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = DisabledColors()
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = u.id,            // DNI en tu DTO está como id ó dniNumber
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("DNI") },
-                        leadingIcon = { Icon(Icons.Default.Badge, null) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = DisabledColors()
-                    )
-                    Spacer(Modifier.height(32.dp))
-
-                    // -------- Botones Aceptar / Rechazar --------
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                vm.approve(true) {
-                                    // 1️⃣  marca que debe refrescar
-                                    navController.previousBackStackEntry
-                                        ?.savedStateHandle
-                                        ?.set("refresh_pending_users", true)
-                                    onBack()
+                                .fillMaxWidth()
+                                .shadow(8.dp, RoundedCornerShape(16.dp)),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                // DNI Images
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    AsyncImage(
+                                        model = u.dniFrontUrl,
+                                        contentDescription = "DNI Frente",
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(160.dp)
+                                            .background(
+                                                MaterialTheme.colorScheme.surface,
+                                                RoundedCornerShape(12.dp)
+                                            )
+                                    )
+                                    AsyncImage(
+                                        model = u.dniBackUrl,
+                                        contentDescription = "DNI Reverso",
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(160.dp)
+                                            .background(
+                                                MaterialTheme.colorScheme.surface,
+                                                RoundedCornerShape(12.dp)
+                                            )
+                                    )
                                 }
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Aceptar") }
-
-                        Button(
-                            onClick = {
-                                vm.approve(false) {
-                                    // 1️⃣  marca que debe refrescar
-                                    navController.previousBackStackEntry
-                                        ?.savedStateHandle
-                                        ?.set("refresh_pending_users", true)
-                                    onBack()
+                                Spacer(Modifier.height(16.dp))
+                                // Read-only fields
+                                OutlinedTextField(
+                                    value = u.firstName,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Nombres") },
+                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = DisabledColors()
+                                )
+                                OutlinedTextField(
+                                    value = u.lastName,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Apellidos") },
+                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = DisabledColors()
+                                )
+                                OutlinedTextField(
+                                    value = u.email,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Correo") },
+                                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = DisabledColors()
+                                )
+                                OutlinedTextField(
+                                    value = u.id,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("DNI") },
+                                    leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = DisabledColors()
+                                )
+                                Spacer(Modifier.height(24.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            vm.approve(true) {
+                                                navController.previousBackStackEntry
+                                                    ?.savedStateHandle
+                                                    ?.set("refresh_pending_users", true)
+                                                onBack()
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(56.dp),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("Aceptar")
+                                    }
+                                    Button(
+                                        onClick = {
+                                            vm.approve(false) {
+                                                navController.previousBackStackEntry
+                                                    ?.savedStateHandle
+                                                    ?.set("refresh_pending_users", true)
+                                                onBack()
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(56.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.error,
+                                            contentColor = MaterialTheme.colorScheme.onError
+                                        )
+                                    ) {
+                                        Text("Rechazar")
+                                    }
                                 }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            ),
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Rechazar") }
+                            }
+                        }
                     }
                 }
             }
@@ -177,17 +235,15 @@ fun AdminUserDetailScreen(
     }
 }
 
-/* ---------- helper ---------- */
 @Composable
 private fun DisabledColors() = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor   = Color.White,
-    unfocusedContainerColor = Color.White,
-    focusedBorderColor      = Color.Transparent,
-    unfocusedBorderColor    = Color.Transparent,
-    disabledTextColor       = Color.Black,
-    disabledLabelColor      = Color.Gray,
-    disabledLeadingIconColor = Color.Gray,
-    disabledBorderColor     = Color.Transparent
-).copy(
-    disabledContainerColor = Color.White
+    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+    focusedBorderColor = Color.Transparent,
+    unfocusedBorderColor = Color.Transparent,
+    disabledBorderColor = Color.Transparent,
+    disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
 )

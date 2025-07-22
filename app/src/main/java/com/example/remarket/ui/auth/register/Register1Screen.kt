@@ -1,4 +1,3 @@
-// Register1Screen.kt
 package com.example.remarket.ui.auth.register
 
 import androidx.compose.foundation.background
@@ -9,6 +8,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.MobileFriendly
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
@@ -17,6 +17,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -32,22 +33,20 @@ fun Register1Screen(
     onNext: () -> Unit,
     viewModel: RegisterViewModel = hiltViewModel()
 ) {
-    // Se mantiene la lógica del estado intacta
     val scrollState = rememberScrollState()
     val firstName by viewModel.firstName.collectAsState()
     val lastName by viewModel.lastName.collectAsState()
     val dni by viewModel.dni.collectAsState()
     val phone by viewModel.phone.collectAsState()
 
-    // Contenedor principal con el fondo de gradiente, igual que en Login
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF6366F1),
-                        Color(0xFF8B5CF6)
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.primaryContainer
                     )
                 )
             )
@@ -55,159 +54,167 @@ fun Register1Screen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
-                .verticalScroll(scrollState), // Se mantiene el scroll para el formulario
+                .verticalScroll(scrollState)
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
-            // Sección de cabecera con estilo consistente
             RegisterHeader()
-
             Spacer(modifier = Modifier.height(32.dp))
 
-            // ----- Formulario de Registro - Parte 1 -----
-
-            // Campo de Nombres
-            Text(
-                text = "Nombres",
-                color = Color.White,
-                fontSize = 14.sp,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            )
-            OutlinedTextField(
-                value = firstName,
-                onValueChange = viewModel::onFirstNameChanged,
-                placeholder = { Text("Ingresa tus nombres", color = Color.Gray) },
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Nombres") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent
-                ),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                singleLine = true
-            )
-            Spacer(Modifier.height(16.dp))
-
-            // Campo de Apellidos
-            Text(
-                text = "Apellidos",
-                color = Color.White,
-                fontSize = 14.sp,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            )
-            OutlinedTextField(
-                value = lastName,
-                onValueChange = viewModel::onLastNameChanged,
-                placeholder = { Text("Ingresa tus apellidos", color = Color.Gray) },
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Apellidos") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent
-                ),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                singleLine = true
-            )
-            Spacer(Modifier.height(16.dp))
-
-            // Campo de DNI
-            Text(
-                text = "DNI",
-                color = Color.White,
-                fontSize = 14.sp,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            )
-            OutlinedTextField(
-                value = dni,
-                onValueChange = viewModel::onDniChanged,
-                placeholder = { Text("Ingresa tu DNI", color = Color.Gray) },
-                leadingIcon = { Icon(Icons.Default.Badge, contentDescription = "DNI") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent
-                ),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true
-            )
-            Spacer(Modifier.height(16.dp))
-
-            // Campo de Teléfono
-            Text(
-                text = "Teléfono",
-                color = Color.White,
-                fontSize = 14.sp,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            )
-            OutlinedTextField(
-                value = phone,
-                onValueChange = viewModel::onPhoneChanged,
-                placeholder = { Text("Ingresa tu teléfono", color = Color.Gray) },
-                leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Teléfono") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent
-                ),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                singleLine = true
-            )
-            Spacer(Modifier.height(32.dp))
-
-            // Botones de navegación con nuevo estilo
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(8.dp, RoundedCornerShape(16.dp)),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                )
             ) {
-                // Botón para regresar (estilo secundario)
-                Button(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White.copy(alpha = 0.2f),
-                        contentColor = Color.White
-                    )
-                ) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    // Nombres
                     Text(
-                        "Regresar",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
+                        text = "Nombres",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
-                }
+                    OutlinedTextField(
+                        value = firstName,
+                        onValueChange = viewModel::onFirstNameChanged,
+                        placeholder = { Text("Ingresa tus nombres", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        singleLine = true
+                    )
 
-                // Botón para siguiente (estilo primario)
-                Button(
-                    onClick = onNext,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color(0xFF6366F1)
-                    )
-                ) {
+                    // Apellidos
                     Text(
-                        "Siguiente",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
+                        text = "Apellidos",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
+                    OutlinedTextField(
+                        value = lastName,
+                        onValueChange = viewModel::onLastNameChanged,
+                        placeholder = { Text("Ingresa tus apellidos", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        singleLine = true
+                    )
+
+                    // DNI
+                    Text(
+                        text = "DNI",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    OutlinedTextField(
+                        value = dni,
+                        onValueChange = viewModel::onDniChanged,
+                        placeholder = { Text("Ingresa tu DNI", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+
+                    // Teléfono
+                    Text(
+                        text = "Teléfono",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    OutlinedTextField(
+                        value = phone,
+                        onValueChange = viewModel::onPhoneChanged,
+                        placeholder = { Text("Ingresa tu teléfono", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 32.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        singleLine = true
+                    )
+
+                    // Botones
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Button(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
+                            Text(
+                                text = "Regresar",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Button(
+                            onClick = onNext,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
+                            Text(
+                                text = "Siguiente",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -219,38 +226,36 @@ private fun RegisterHeader() {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Círculo de fondo para el ícono, igual que en Login
         Box(
             modifier = Modifier
-                .size(80.dp)
+                .size(100.dp)
                 .background(
-                    Color.White.copy(alpha = 0.2f),
-                    RoundedCornerShape(40.dp)
-                ),
+                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(50.dp)
+                )
+                .shadow(elevation = 8.dp, shape = RoundedCornerShape(50.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Default.Person,
+                imageVector = Icons.Default.MobileFriendly,
                 contentDescription = "Icono de Registro",
-                modifier = Modifier.size(40.dp),
-                tint = Color.White
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onPrimary
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Títulos adaptados para el registro
         Text(
             text = "Crea tu Cuenta",
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onPrimary
         )
-
         Text(
             text = "Paso 1 de 2: Datos Personales",
             fontSize = 16.sp,
-            color = Color.White.copy(alpha = 0.8f)
+            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
         )
     }
 }

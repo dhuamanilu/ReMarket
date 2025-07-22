@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.cloudinary.android)
     implementation(libs.androidx.core.i18n)
     implementation(libs.firebase.firestore.ktx)
+    implementation(libs.androidx.foundation.android)
     ksp(libs.hilt.compiler)
     implementation(libs.material.icons.extended)
     implementation(libs.moshi)

@@ -22,6 +22,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.example.remarket.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,11 +129,10 @@ private fun LogoSection() {
                 .shadow(elevation = 8.dp, shape = RoundedCornerShape(50.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.MobileFriendly,
+            Image(
+                painter = painterResource(id = R.drawable.ic_logo_app),
                 contentDescription = "ReMarket Logo",
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.onPrimary
+                modifier = Modifier.size(97.dp)
             )
         }
 

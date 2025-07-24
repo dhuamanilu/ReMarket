@@ -742,3 +742,21 @@ conexión a internet.
 <img src="media/media/image49.png" style="width:2.14681in; height:4.36553in" />
 <img src="media/media/image50.png"style="width:2.03422in;height:4.35322in" />
 <img src="media/media/image51.png"style="width:2.10938in;height:4.37936in" />
+
+---
+## Credenciales de Administrador
+- **Usuario:** adminnu@gmail.com
+- **Contraseña:** Admin123
+  
+## Credenciales de Cliente
+- **Usuario:** cliente@gmail.com
+- **Contraseña:** cliente
+---
+
+## Participación del equipo
+| Integrante                          | % Participación |
+|:------------------------------------|:---------------:|
+| Azurin Zuñiga, Eberth Wilfredo      |       25 %      |
+| Canal Mendoza, Fernando Rubén       |       25 %      |
+| Galvez Quilla, Henry Isaías         |       25 %      |
+| Huamani Luque, Diego Alonso         |       25 %      |

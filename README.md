@@ -75,10 +75,7 @@ para conectar la UI con la lógica de negocio.
 
 - **ViewModels:** Actúan como intermediarios entre la UI y la capa de
   Dominio/Datos. Preparan los datos para ser mostrados y exponen el
-  estado de la UI (ej.  
-  HomeUiState ) a través de  
-  StateFlows. No tienen conocimiento directo de la UI, lo que facilita
-  las pruebas unitarias.
+  estado de la UI (ej.  HomeUiState ) a través de  StateFlows. No tienen conocimiento directo de la UI, lo que facilita las pruebas unitarias.
 
 - **Capa de Dominio (Domain):** Esta capa es opcional pero útil para
   encapsular lógica de negocio compleja e independiente. Contiene los  
@@ -192,8 +189,7 @@ resiliente a la falta de conexión.
 
   - **Si NO hay conexión:**
 
-1.  Se genera un ID temporal para el producto (  
-    offline\_\<UUID\>).
+1.  Se genera un ID temporal para el producto (offline\_\<UUID\>).
 
 2.  Las imágenes seleccionadas por el usuario (cuyas URIs son
     temporales) se copian al almacenamiento interno de la aplicación
@@ -340,8 +336,7 @@ Este es el método más sencillo para usuarios finales.
     navegador de tu dispositivo Android para descargar el archivo de
     instalación (.apk):
 
-    - [<u>Enlace de
-      Descarga</u>](https://www.google.com/search?q=http://67.205.133.92/download/remarket.apk&authuser=2)
+    https://drive.google.com/file/d/1X_92Lbuh9LH2r0Oy-s5D4eKpIUBOArNI/view?usp=sharing
 
 2.  **Habilitar permisos:** Si es la primera vez que instalas una
     aplicación fuera de la Play Store, tu dispositivo te pedirá permiso
